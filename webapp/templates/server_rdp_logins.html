@@ -1,0 +1,496 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>__DASHBOARD_TITLE__</title>
+  <style>
+    body { margin:0; background:#f4f7fb; font-family: Segoe UI, Tahoma, sans-serif; }
+    header { padding:14px 18px; background:#123a7a; color:#fff; display:flex; gap:12px; align-items:center; justify-content:space-between; }
+    header .logo-link { display:inline-flex; align-items:center; border-radius:8px; transition: transform 140ms ease, filter 140ms ease; }
+    header .logo-link:hover, header .logo-link:focus-visible { transform: scale(1.08) rotate(-2deg); filter: drop-shadow(0 0 8px rgba(255,255,255,0.55)); outline: 2px solid rgba(255,255,255,0.6); outline-offset:3px; }
+    .title-wrap { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .shell { padding:14px; }
+    .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+    .btn-back { display:inline-block; background:#e0e7f0; color:#123a7a; font-weight:600; border:0; border-radius:6px; padding:6px 10px; text-decoration:none; }
+    .server-focus { margin:0 0 12px; font-size:30px; font-weight:700; color:#123a7a; line-height:1.1; }
+    .summary { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+    .stat { background:#edfaf1; border:1px solid #2e9e5b; border-radius:10px; padding:10px 12px; box-shadow:0 2px 6px rgba(22,101,52,0.18); min-width:220px; }
+    .muted { color:#7c2d12; font-size:12px; font-weight:600; }
+    .progress-wrap { background:#fff; border:1px solid #d7deea; border-radius:10px; padding:10px 12px; margin-bottom:12px; }
+    .progress-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; font-size:13px; color:#123a7a; font-weight:600; }
+    .progress-track { width:100%; height:10px; background:#e4e6eb; border-radius:999px; overflow:hidden; }
+    .progress-fill { width:0%; height:100%; background:linear-gradient(90deg, #123a7a, #2e9e5b); transition:width 160ms ease; }
+    .controls { display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+    .search-input { min-width:260px; max-width:520px; width:100%; padding:8px 10px; border:1px solid #c6d1e2; border-radius:8px; font-size:13px; }
+    .search-input:focus { outline:none; border-color:#1f8a47; box-shadow:0 0 0 2px rgba(31,138,71,0.18); }
+    table { width:100%; border-collapse:collapse; background:#fff; }
+    th, td { border:1px solid #d7deea; padding:6px; text-align:left; font-size:13px; }
+    th { background:#223a64; color:#fff; }
+    th.sortable { cursor:pointer; user-select:none; }
+    .sort-indicator { margin-left:4px; font-size:11px; opacity:0.75; }
+    th.sortable.sort-active .sort-indicator { opacity:1; }
+    .pagination { display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-top:10px; }
+    .pagination-left, .pagination-right { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .page-btn { border:1px solid #c6d1e2; background:#fff; color:#123a7a; border-radius:6px; padding:5px 10px; cursor:pointer; font-weight:600; }
+    .page-btn:disabled { opacity:0.5; cursor:not-allowed; }
+    .page-info { font-size:12px; color:#4a5b73; }
+    .page-size { border:1px solid #c6d1e2; border-radius:6px; padding:5px 8px; font-size:12px; }
+    .msg { margin-top:10px; font-size:13px; color:#7c2d12; }
+    .mono { font-family: Consolas, 'Courier New', monospace; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title-wrap">
+      <a id="header-server-link" href="/server" class="logo-link" aria-label="Back to server page">
+        <img src="/logo.png" alt="Logo" style="height:36px;" />
+      </a>
+      <strong>__DASHBOARD_TITLE__</strong>
+    </div>
+    <div>Signed in as __SAFE_USER__ | <a href="/logout" style="color:#fff;">Logout</a> | <a href="/help" style="color:#fff;">Help</a></div>
+  </header>
+  <div class="shell">
+    <div class="toolbar">
+      <a id="back-server-link" class="btn-back" href="/server">&larr; Back to server detail</a>
+      <a id="back-dashboard-link" class="btn-back" href="/dashboard">Back to dashboard</a>
+    </div>
+    <div id="server-focus" class="server-focus">RDP logins</div>
+    <div class="summary">
+      <div class="stat">
+        <div class="muted">Oldest Security Event Found</div>
+        <div id="oldest-event">-</div>
+      </div>
+      <div class="stat">
+        <div class="muted">RDP Logins</div>
+        <div id="row-count">0</div>
+      </div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-head">
+        <span id="progress-label">Preparing log query...</span>
+        <span id="progress-pct">0%</span>
+      </div>
+      <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+    </div>
+
+    <div class="controls">
+      <input id="search-box" class="search-input" type="search" placeholder="Search username, source IP, or time..." />
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th class="sortable" data-sort-key="Username">Username <span class="sort-indicator">↕</span></th>
+          <th class="sortable" data-sort-key="LoginTimeUtc">Login time (Rome time) <span class="sort-indicator">↕</span></th>
+          <th class="sortable" data-sort-key="SourceIP">Source IP <span class="sort-indicator">↕</span></th>
+        </tr>
+      </thead>
+      <tbody id="rdp-rows"></tbody>
+    </table>
+    <div class="pagination">
+      <div class="pagination-left">
+        <button id="prev-page" class="page-btn" type="button">Previous</button>
+        <button id="next-page" class="page-btn" type="button">Next</button>
+        <span id="page-info" class="page-info">Page 1 / 1</span>
+      </div>
+      <div class="pagination-right">
+        <label for="page-size" class="page-info">Rows per page</label>
+        <select id="page-size" class="page-size">
+          <option value="20" selected>20</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+          <option value="200">200</option>
+        </select>
+      </div>
+    </div>
+    <div id="status-msg" class="msg"></div>
+  </div>
+<script>
+const csrfToken = '__CSRF_TOKEN__';
+const queryParams = new URLSearchParams(location.search);
+const serverName = (queryParams.get('name') || '').trim();
+
+const serverFocusEl = document.getElementById('server-focus');
+const oldestEventEl = document.getElementById('oldest-event');
+const rowCountEl = document.getElementById('row-count');
+const rowsEl = document.getElementById('rdp-rows');
+const statusMsgEl = document.getElementById('status-msg');
+const headerServerLinkEl = document.getElementById('header-server-link');
+const backServerLinkEl = document.getElementById('back-server-link');
+const backDashboardLinkEl = document.getElementById('back-dashboard-link');
+const progressFillEl = document.getElementById('progress-fill');
+const progressPctEl = document.getElementById('progress-pct');
+const progressLabelEl = document.getElementById('progress-label');
+const searchBoxEl = document.getElementById('search-box');
+const sortableHeaders = Array.from(document.querySelectorAll('th.sortable'));
+const prevPageBtnEl = document.getElementById('prev-page');
+const nextPageBtnEl = document.getElementById('next-page');
+const pageInfoEl = document.getElementById('page-info');
+const pageSizeEl = document.getElementById('page-size');
+let progressValue = 0;
+let progressTimer = null;
+const FULL_FETCH_TIMEOUT_MS = 60000;
+let rawRows = [];
+let sortState = { key: 'LoginTimeUtc', dir: 'desc' };
+let currentPage = 1;
+let pageSize = pageSizeEl ? (parseInt(pageSizeEl.value, 10) || 20) : 20;
+
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatRomeTime(value) {
+  if (!value) return '-';
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return value;
+  return dt.toLocaleString('it-IT', {
+    timeZone: 'Europe/Rome',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false
+  });
+}
+
+function formatRomeHourMinute(value) {
+  if (!value) return '-';
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return '-';
+  return dt.toLocaleTimeString('it-IT', {
+    timeZone: 'Europe/Rome',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+}
+
+function formatRomeDate(value) {
+  if (!value) return '-';
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return '-';
+
+  const parts = new Intl.DateTimeFormat('it-IT', {
+    timeZone: 'Europe/Rome',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(dt);
+
+  const day = parts.find(p => p.type === 'day')?.value;
+  const month = parts.find(p => p.type === 'month')?.value;
+  const year = parts.find(p => p.type === 'year')?.value;
+  if (!day || !month || !year) return '-';
+  return year + '.' + month + '.' + day;
+}
+
+function updateOldestBadge(payload, rows) {
+  if (!oldestEventEl) return;
+
+  const oldestDate = payload.OldestEventUtc
+    ? formatRomeDate(payload.OldestEventUtc)
+    : (payload.OldestEventDate || '-');
+  const oldestHm = payload.OldestEventUtc ? formatRomeHourMinute(payload.OldestEventUtc) : '-';
+
+  if (oldestHm && oldestHm !== '-') {
+    oldestEventEl.textContent = oldestDate + ' ' + oldestHm;
+  } else {
+    oldestEventEl.textContent = oldestDate;
+  }
+}
+
+function setServerLinks() {
+  const serverHref = '/server?name=' + encodeURIComponent(serverName);
+  if (headerServerLinkEl) headerServerLinkEl.href = serverHref;
+  if (backServerLinkEl) backServerLinkEl.href = serverHref;
+  if (backDashboardLinkEl) backDashboardLinkEl.href = '/dashboard';
+}
+
+function setProgress(value, label) {
+  progressValue = Math.max(0, Math.min(100, Number(value) || 0));
+  if (progressFillEl) progressFillEl.style.width = progressValue + '%';
+  if (progressPctEl) progressPctEl.textContent = Math.round(progressValue) + '%';
+  if (progressLabelEl && label) progressLabelEl.textContent = label;
+}
+
+function startProgressFeeling() {
+  setProgress(8, 'Fetching oldest Security event...');
+  if (progressTimer) {
+    clearInterval(progressTimer);
+  }
+
+  progressTimer = setInterval(() => {
+    if (progressValue < 70) {
+      setProgress(progressValue + 2, 'Loading Security log entries...');
+    } else if (progressValue < 90) {
+      setProgress(progressValue + 1, 'Processing login events...');
+    }
+  }, 350);
+}
+
+async function fetchJsonWithTimeout(url, timeoutMs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function finishProgress(label) {
+  if (progressTimer) {
+    clearInterval(progressTimer);
+    progressTimer = null;
+  }
+  setProgress(100, label || 'Completed');
+}
+
+async function loadOldestEventFirst() {
+  if (!serverName) return;
+
+  try {
+    const oldestUrl = '/api/server-rdp-logins?name=' + encodeURIComponent(serverName) + '&oldestOnly=1';
+    const res = await fetch(oldestUrl, { cache: 'no-store' });
+    if (res.status === 401) {
+      window.location.href = '/login';
+      return;
+    }
+    if (!res.ok) {
+      throw new Error('HTTP ' + res.status);
+    }
+
+    const payload = await res.json();
+    if (oldestEventEl) {
+      updateOldestBadge(payload, []);
+    }
+
+    if (payload.ReadError && statusMsgEl) {
+      statusMsgEl.textContent = 'Security log read warning: ' + payload.ReadError;
+    }
+
+    if (progressValue < 25) {
+      setProgress(25, 'Oldest event loaded, fetching full list...');
+    }
+  } catch (err) {
+    if (statusMsgEl) {
+      statusMsgEl.textContent = 'Failed to load oldest event: ' + (err && err.message ? err.message : err);
+    }
+  }
+}
+
+function renderRows(rows) {
+  rawRows = Array.isArray(rows) ? rows.slice() : [];
+
+  const query = ((searchBoxEl && searchBoxEl.value) ? searchBoxEl.value : '').trim().toLowerCase();
+  let visibleRows = rawRows;
+
+  if (query) {
+    visibleRows = rawRows.filter((row) => {
+      const username = String(row.Username || '').toLowerCase();
+      const sourceIp = String(row.SourceIP || '').toLowerCase();
+      const loginUtc = String(row.LoginTimeUtc || '').toLowerCase();
+      const loginRome = String(formatRomeTime(row.LoginTimeUtc || '')).toLowerCase();
+      return username.includes(query) || sourceIp.includes(query) || loginUtc.includes(query) || loginRome.includes(query);
+    });
+  }
+
+  const sortKey = sortState.key;
+  const sortDir = sortState.dir === 'asc' ? 1 : -1;
+  visibleRows = visibleRows.slice().sort((a, b) => {
+    let av = a && a[sortKey] != null ? a[sortKey] : '';
+    let bv = b && b[sortKey] != null ? b[sortKey] : '';
+
+    if (sortKey === 'LoginTimeUtc') {
+      av = Date.parse(av) || 0;
+      bv = Date.parse(bv) || 0;
+      return (av - bv) * sortDir;
+    }
+
+    av = String(av).toLowerCase();
+    bv = String(bv).toLowerCase();
+    if (av < bv) return -1 * sortDir;
+    if (av > bv) return 1 * sortDir;
+    return 0;
+  });
+
+  sortableHeaders.forEach((th) => {
+    const indicator = th.querySelector('.sort-indicator');
+    const key = th.getAttribute('data-sort-key');
+    th.classList.toggle('sort-active', key === sortState.key);
+    if (!indicator) return;
+    if (key !== sortState.key) {
+      indicator.textContent = '↕';
+    } else {
+      indicator.textContent = sortState.dir === 'asc' ? '↑' : '↓';
+    }
+  });
+
+  if (rowCountEl) {
+    rowCountEl.textContent = query ? (visibleRows.length + ' / ' + rawRows.length) : String(rawRows.length);
+  }
+
+  const totalVisible = visibleRows.length;
+  const totalPages = Math.max(1, Math.ceil(totalVisible / pageSize));
+  if (currentPage > totalPages) {
+    currentPage = totalPages;
+  }
+  if (currentPage < 1) {
+    currentPage = 1;
+  }
+
+  if (pageInfoEl) {
+    pageInfoEl.textContent = 'Page ' + currentPage + ' / ' + totalPages;
+  }
+  if (prevPageBtnEl) {
+    prevPageBtnEl.disabled = (currentPage <= 1);
+  }
+  if (nextPageBtnEl) {
+    nextPageBtnEl.disabled = (currentPage >= totalPages);
+  }
+
+  if (rawRows.length === 0) {
+    rowsEl.innerHTML = '<tr><td colspan="3">No RDP login entries found.</td></tr>';
+    return;
+  }
+
+  if (visibleRows.length === 0) {
+    rowsEl.innerHTML = '<tr><td colspan="3">No matching entries for current search.</td></tr>';
+    return;
+  }
+
+  const startIndex = (currentPage - 1) * pageSize;
+  const pageRows = visibleRows.slice(startIndex, startIndex + pageSize);
+
+  rowsEl.innerHTML = pageRows.map((row) => {
+    return '<tr>' +
+      '<td>' + escapeHtml(row.Username || '-') + '</td>' +
+      '<td class="mono">' + escapeHtml(formatRomeTime(row.LoginTimeUtc)) + '</td>' +
+      '<td class="mono">' + escapeHtml(row.SourceIP || '-') + '</td>' +
+      '</tr>';
+  }).join('');
+}
+
+async function loadRdpLogins() {
+  if (!serverName) {
+    if (serverFocusEl) serverFocusEl.textContent = 'Missing server name';
+    if (statusMsgEl) statusMsgEl.textContent = 'Server query parameter is required.';
+    renderRows([]);
+    return;
+  }
+
+  if (serverFocusEl) {
+    serverFocusEl.textContent = serverName + ' - last RDP logins';
+  }
+
+  startProgressFeeling();
+  await loadOldestEventFirst();
+
+  try {
+    const url = '/api/server-rdp-logins?name=' + encodeURIComponent(serverName);
+    setProgress(40, 'Requesting full event list...');
+    const res = await fetchJsonWithTimeout(url, FULL_FETCH_TIMEOUT_MS);
+
+    if (res.status === 401) {
+      finishProgress('Redirecting to login...');
+      window.location.href = '/login';
+      return;
+    }
+
+    if (!res.ok) {
+      throw new Error('HTTP ' + res.status);
+    }
+
+    setProgress(75, 'Parsing event payload...');
+    const payload = await res.json();
+    const rows = Array.isArray(payload.Rows) ? payload.Rows : [];
+
+    updateOldestBadge(payload, rows);
+    if (rowCountEl) {
+      rowCountEl.textContent = String(payload.Count == null ? rows.length : payload.Count);
+    }
+
+    setProgress(92, 'Rendering rows...');
+    renderRows(rows);
+    finishProgress('Loaded all matching events');
+
+    if (statusMsgEl) {
+      if (payload.ReadError) {
+        statusMsgEl.textContent = 'Security log read warning: ' + payload.ReadError;
+      } else {
+        statusMsgEl.textContent = rows.length > 0 ? '' : 'No successful RDP (logon type 10) events found.';
+      }
+    }
+  } catch (err) {
+    renderRows([]);
+    finishProgress('Load failed');
+    if (statusMsgEl) {
+      if (err && err.name === 'AbortError') {
+        statusMsgEl.textContent = 'Loading timed out while reading Security logs. Try again or narrow the query scope.';
+      } else {
+        statusMsgEl.textContent = 'Failed to load RDP login data: ' + (err && err.message ? err.message : err);
+      }
+    }
+  }
+}
+
+setServerLinks();
+loadRdpLogins();
+
+if (searchBoxEl) {
+  searchBoxEl.addEventListener('input', () => {
+    currentPage = 1;
+    renderRows(rawRows);
+  });
+}
+
+sortableHeaders.forEach((th) => {
+  th.addEventListener('click', () => {
+    const key = th.getAttribute('data-sort-key');
+    if (!key) return;
+    if (sortState.key === key) {
+      sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortState.key = key;
+      sortState.dir = key === 'LoginTimeUtc' ? 'desc' : 'asc';
+    }
+    currentPage = 1;
+    renderRows(rawRows);
+  });
+});
+
+if (prevPageBtnEl) {
+  prevPageBtnEl.addEventListener('click', () => {
+    if (currentPage > 1) {
+      currentPage--;
+      renderRows(rawRows);
+    }
+  });
+}
+
+if (nextPageBtnEl) {
+  nextPageBtnEl.addEventListener('click', () => {
+    currentPage++;
+    renderRows(rawRows);
+  });
+}
+
+if (pageSizeEl) {
+  pageSizeEl.addEventListener('change', () => {
+    const parsed = parseInt(pageSizeEl.value, 10);
+    pageSize = Number.isFinite(parsed) && parsed > 0 ? parsed : 20;
+    currentPage = 1;
+    renderRows(rawRows);
+  });
+}
+</script>
+</body>
+</html>

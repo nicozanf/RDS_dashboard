@@ -1,0 +1,1442 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>__DASHBOARD_TITLE__</title>
+  <style>
+    body { margin:0; background:#f4f7fb; font-family: Segoe UI, Tahoma, sans-serif; }
+    header { padding:6px 18px; background:#123a7a; color:#fff; display:flex; gap:12px; align-items:center; justify-content:space-between; }
+    header .logo-link { display:inline-flex; align-items:center; border-radius:8px; transition: transform 140ms ease, filter 140ms ease, box-shadow 140ms ease; }
+    header .logo-link:hover, header .logo-link:focus-visible { transform: scale(1.1) rotate(-2deg); filter: drop-shadow(0 0 8px rgba(255,255,255,0.55)); outline: 2px solid rgba(255,255,255,0.6); outline-offset:3px; }
+    header .title-wrap { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .logo-mark { position:relative; width:96px; height:64px; display:inline-flex; align-items:center; justify-content:flex-start; overflow:hidden; }
+    .logo-fallback { position:absolute; inset:0; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background:rgba(255,255,255,0.2); color:#fff; font-size:28px; font-weight:700; letter-spacing:0.4px; opacity:0; transition:opacity 120ms ease; }
+    .logo-image { position:relative; width:96px; height:96px; display:block; opacity:0; transition:opacity 120ms ease; object-fit:contain; }
+    .logo-image.is-ready { opacity:1; }
+    .logo-fallback.is-shown { opacity:1; }
+    .logo-fallback.is-hidden { opacity:0; pointer-events:none; }
+    .farm-picker { display:inline-flex; align-items:center; gap:8px; padding:4px 6px; border-radius:12px; border:2px solid #facc15; background:#facc15; }
+    .farm-label { display:inline-flex; align-items:center; padding:2px 6px; border-radius:8px; color:#172554; font-size:12px; font-weight:800; letter-spacing:0.2px; }
+    .farm-select { min-width:180px; padding:7px 12px; border-radius:8px; border:0; background:#fef3c7; color:#0f172a; font-weight:700; box-shadow:0 0 0 1px rgba(146,64,14,0.2) inset; }
+    .farm-select:focus-visible { outline:2px solid #facc15; outline-offset:2px; }
+    .farm-select:disabled { opacity:1; cursor:default; }
+    .shell { padding:14px; }
+    .stats { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+    .stat { background:#edfaf1; border:1px solid #2e9e5b; border-radius:10px; padding:10px 12px; box-shadow:0 2px 6px rgba(22,101,52,0.18); min-width:110px; }
+    .muted { color:#166534; font-size:12px; font-weight:600; }
+    a { color:#fff; }
+    .farm-focus { font-size:1.5em; font-weight:700; color:#123a7a; margin-bottom:14px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .btn-back { background:#e0e7f0; border:0; border-radius:8px; padding:8px 14px; cursor:pointer; font-weight:600; color:#123a7a; margin-bottom:12px; }
+    .graphs { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:10px; }
+    .graph-card { flex:1 1 340px; background:#0c1d33; border-radius:12px; padding:12px; min-width:280px; }
+    .graph-head { display:flex; justify-content:space-between; align-items:center; color:#fff; font-size:13px; font-weight:600; margin-bottom:8px; }
+    .graph-value { font-size:15px; color:#48d9ff; }
+    .graph-value.ram { color:#8bff75; }
+    .graph-value.sessions { color:#fbbf24; }
+    .graph-axis { display:flex; justify-content:space-between; margin-top:6px; font-size:11px; color:#8da4c6; }
+    .range-selector-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:0 0 8px; }
+    .range-buttons { display:flex; flex-wrap:wrap; gap:8px; margin-top:0; }
+    .range-date-input { position:absolute; opacity:0; pointer-events:none; width:1px; height:1px; }
+    .range-btn { border:1px solid #2e9e5b; background:#edfaf1; color:#166534; border-radius:999px; padding:7px 12px; font-size:12px; font-weight:600; cursor:pointer; }
+    .range-btn:hover, .range-btn:focus-visible { box-shadow:0 0 0 2px rgba(34,197,94,0.35); outline:none; }
+    .range-btn.active { background:#166534; color:#fff; border-color:#14532d; }
+    .section-separator { border:0; border-top:3px solid #b9c7dc; margin:22px 0 12px; }
+    .section-title { margin:14px 0 8px; color:#123a7a; font-weight:700; }
+    .range-selector-row .section-title { margin:0; }
+    .tm-canvas { display:block; width:100%; height:140px; border-radius:6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title-wrap">
+    <a id="header-dashboard-link" href="/dashboard" class="logo-link" aria-label="Back to the dashboard">
+        <span class="logo-mark"><span class="logo-fallback is-hidden" aria-hidden="true">NB</span><img id="header-logo" class="logo-image" src="/logo.png" alt="Logo" width="96" height="96" /></span>
+      </a>
+      <strong>__DASHBOARD_TITLE__</strong>
+    <span class="farm-picker"><label for="farm-selector" class="farm-label">Selected Farm:</label>
+    <select id="farm-selector" class="farm-select" aria-label="Current farm" disabled></select></span>
+    </div>
+    <div>Signed in as __SAFE_USER__ | <a href="/logout">Logout</a> | <a href="/help">Help</a></div>
+  </header>
+  <div class="shell">
+        <div class="farm-nav">
+            <button id="back-dashboard-btn" class="btn-back">&larr; Back to the dashboard</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="muted">Servers</div><div id="f-servers">-</div></div>
+      <div class="stat"><div class="muted">Total Sessions</div><div id="f-total">-</div></div>
+            <div class="stat"><div class="muted">Sessions</div><div id="f-sessions">-</div></div>
+      <div class="stat"><div class="muted">Active</div><div id="f-active">-</div></div>
+      <div class="stat"><div class="muted">Disconnected</div><div id="f-disc">-</div></div>
+      <div class="stat"><div class="muted">Avg CPU %</div><div id="f-cpu">-</div></div>
+      <div class="stat"><div class="muted">Avg RAM %</div><div id="f-ram">-</div></div>
+    <div class="stat"><div class="muted">Last Update (Rome time)</div><div id="f-ts">-</div><div id="f-load-status" class="muted" style="margin-top:4px;min-height:16px;">-</div></div>
+    </div>
+        <div class="section-title">Last hour data</div>
+    <div class="graphs">
+      <div class="graph-card">
+        <div class="graph-head"><span>Farm Avg CPU</span><span id="cpu-now" class="graph-value">-</span></div>
+        <canvas id="cpu-graph" class="tm-canvas"></canvas>
+                <div class="graph-axis"><span id="cpu-x-left">-</span><span id="cpu-x-right">-</span></div>
+      </div>
+      <div class="graph-card">
+        <div class="graph-head"><span>Farm Avg RAM</span><span id="ram-now" class="graph-value ram">-</span></div>
+        <canvas id="ram-graph" class="tm-canvas"></canvas>
+                <div class="graph-axis"><span id="ram-x-left">-</span><span id="ram-x-right">-</span></div>
+      </div>
+            <div class="graph-card">
+                <div class="graph-head"><span>Sessions</span><span class="graph-value sessions"><span id="sessions-now">-</span> | Max: <span id="sessions-max">-</span></span></div>
+                <canvas id="sessions-graph" class="tm-canvas"></canvas>
+                                <div class="graph-axis"><span id="sessions-x-left">-</span><span id="sessions-x-right">-</span></div>
+            </div>
+    </div>
+        <hr class="section-separator" />
+        <div class="range-selector-row">
+            <div class="section-title" id="history-range-title">Selected range: Today</div>
+            <div class="range-buttons" id="range-buttons"></div>
+            <input id="select-day-input" class="range-date-input" type="date" />
+            <div id="oldest-data-info" style="font-size:12px;color:#666;margin-top:8px;"></div>
+        </div>
+        <div class="graphs">
+            <div class="graph-card">
+                <div class="graph-head"><span>Avg CPU (24h)</span><span id="cpu-24h-now" class="graph-value">Max: -</span></div>
+                <canvas id="cpu-24h-graph" class="tm-canvas"></canvas>
+                <div class="graph-axis"><span id="cpu-24h-x-left">-</span><span id="cpu-24h-x-right">-</span></div>
+            </div>
+            <div class="graph-card">
+                <div class="graph-head"><span>Avg RAM (24h)</span><span id="ram-24h-now" class="graph-value ram">Max: -</span></div>
+                <canvas id="ram-24h-graph" class="tm-canvas"></canvas>
+                <div class="graph-axis"><span id="ram-24h-x-left">-</span><span id="ram-24h-x-right">-</span></div>
+            </div>
+            <div class="graph-card">
+                <div class="graph-head"><span>Sessions (24h)</span><span id="sessions-24h-now" class="graph-value sessions">Max: -</span></div>
+                <canvas id="sessions-24h-graph" class="tm-canvas"></canvas>
+                <div class="graph-axis"><span id="sessions-24h-x-left">-</span><span id="sessions-24h-x-right">-</span></div>
+            </div>
+        </div>
+        <pre id="farm-debug" style="display:none;white-space:pre-wrap;background:#0f172a;color:#a7f3d0;padding:10px;border-radius:8px;font-size:12px;margin-top:10px;"></pre>
+  </div>
+<script>
+const csrfToken = "__CSRF_TOKEN__";
+const queryParams = new URLSearchParams(location.search);
+const debugMode = queryParams.get('debug') === '1';
+const farmSelectorEl = document.getElementById('farm-selector');
+const backDashboardBtnEl = document.getElementById('back-dashboard-btn');
+const headerDashboardLinkEl = document.getElementById('header-dashboard-link');
+const cpuCanvas = document.getElementById('cpu-graph');
+const ramCanvas = document.getElementById('ram-graph');
+const sessionsCanvas = document.getElementById('sessions-graph');
+const cpu24hCanvas = document.getElementById('cpu-24h-graph');
+const ram24hCanvas = document.getElementById('ram-24h-graph');
+const sessions24hCanvas = document.getElementById('sessions-24h-graph');
+const cpuHistory = [];
+const ramHistory = [];
+const sessionsHistory = [];
+const cpu24hHistory = [];
+const ram24hHistory = [];
+const sessions24hHistory = [];
+const liveTsHistory = [];
+const sessionsLiveTsHistory = [];
+const ts24hHistory = [];
+const sessions24hTsHistory = [];
+const historyMax = 360;
+let historySeeded = false;
+let farmHistoryApiAttempted = false;
+let seededLastTs = '';
+let allFarmHistory = [];
+let oldestDataTs = '';
+let selectedHistoryRange = 'today';
+let selectedCustomDayKey = '';
+let selectedHistoryWindowStartMs = null;
+let selectedHistoryWindowEndMs = null;
+let farmPersistedAttempts = 0;
+let historyLoadedDaysByFarm = {};
+let historyLoadTimerId = null;
+let historyLoadPct = 0;
+let historyLoadInFlight = false;
+let historyLoadController = null;
+let selectedFarm = (queryParams.get('farm') || '').trim();
+let currentAllServersFarmName = 'All servers';
+let refreshTimerId = null;
+let currentSnapshot = null;
+let currentVisibleServers = [];
+let currentLivePointFarm = '';
+let farmViewHistory = [];
+
+function getServerShortName(name) {
+    return String(name || '').split('.')[0].trim().toLowerCase();
+}
+
+function isAllServersFarm(farmName) {
+    return String(farmName || '').trim().toLowerCase() === String(currentAllServersFarmName || 'All servers').trim().toLowerCase();
+}
+
+function getServerFarmName(row, farmMap) {
+    const direct = String((row && row.Farm) || '').trim();
+    if (direct) return direct;
+    const shortName = getServerShortName((row && row.Name) || '');
+    return shortName ? String(farmMap[shortName] || '') : '';
+}
+
+function buildFarmList(snapshot) {
+    const allName = String((snapshot && snapshot.AllServersFarmName) || currentAllServersFarmName || 'All servers');
+    currentAllServersFarmName = allName;
+    const farms = Array.isArray(snapshot && snapshot.FarmCatalog)
+        ? snapshot.FarmCatalog.map((farm) => String((farm && farm.Name) || '').trim()).filter(Boolean)
+        : [];
+    const unique = [];
+    const seen = new Set();
+    [allName].concat(farms).forEach((f) => {
+        const name = String(f || '').trim();
+        if (!name) return;
+        const key = name.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        unique.push(name);
+    });
+    return unique;
+}
+
+function applyFarmSelection(snapshot) {
+    const farms = buildFarmList(snapshot);
+    if (!selectedFarm || !farms.some((f) => f.toLowerCase() === selectedFarm.toLowerCase())) {
+        selectedFarm = currentAllServersFarmName;
+    }
+
+    farmSelectorEl.innerHTML = '';
+    farms.forEach((farmName) => {
+        const option = document.createElement('option');
+        option.value = farmName;
+        option.textContent = farmName;
+        if (farmName.toLowerCase() === selectedFarm.toLowerCase()) {
+            option.selected = true;
+        }
+        farmSelectorEl.appendChild(option);
+    });
+    farmSelectorEl.disabled = false;
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('farm', selectedFarm);
+    if (debugMode) {
+        url.searchParams.set('debug', '1');
+    } else {
+        url.searchParams.delete('debug');
+    }
+    history.replaceState({}, '', url.toString());
+
+    const dashboardUrl = new URL('/dashboard', window.location.origin);
+    if (!isAllServersFarm(selectedFarm)) {
+        dashboardUrl.searchParams.set('farm', selectedFarm);
+    } else {
+        dashboardUrl.searchParams.delete('farm');
+    }
+    if (headerDashboardLinkEl) {
+        headerDashboardLinkEl.href = dashboardUrl.pathname + dashboardUrl.search;
+    }
+    backDashboardBtnEl.onclick = () => { window.location.href = dashboardUrl.pathname + dashboardUrl.search; };
+}
+
+function filterSnapshotByFarm(snapshot) {
+    const servers = Array.isArray(snapshot && snapshot.Servers) ? snapshot.Servers : [];
+    const farmMap = (snapshot && snapshot.FarmServerMap) || {};
+    const allName = currentAllServersFarmName;
+
+    if (String(selectedFarm || '').toLowerCase() === String(allName || '').toLowerCase()) {
+        return servers.slice();
+    }
+
+    return servers.filter((row) => {
+        const rowFarm = getServerFarmName(row, farmMap);
+        return rowFarm && rowFarm.toLowerCase() === selectedFarm.toLowerCase();
+    });
+}
+
+function buildSummaryForFarm(snapshot, visibleServers) {
+    const sessions = Array.isArray(snapshot && snapshot.Sessions) ? snapshot.Sessions : [];
+    const visibleKeys = new Set((visibleServers || []).map((s) => getServerShortName((s && (s.Name || s.Server || s.Short)) || '')));
+    const relevantSessions = sessions.filter((s) => visibleKeys.has(getServerShortName((s && s.Server) || '')));
+    const active = relevantSessions.filter((s) => String((s && s.State) || '').toLowerCase() === 'active').length;
+    const disconnected = relevantSessions.filter((s) => String((s && s.State) || '').toLowerCase() === 'disconnected').length;
+    return {
+        Total: relevantSessions.length,
+        Active: active,
+        Disconnected: disconnected
+    };
+}
+
+function buildFarmScopedHistory(snapshot, visibleServers) {
+    const persistedHistory = Array.isArray(allFarmHistory) ? allFarmHistory : [];
+    if (persistedHistory.length === 0) {
+        return [];
+    }
+
+    if (isAllServersFarm(selectedFarm)) {
+        return sortHistoryByTs(persistedHistory.slice());
+    }
+
+    const scopedPersisted = persistedHistory.filter((point) => {
+        const farmName = String((point && point.Farm) || currentAllServersFarmName || 'All servers').trim();
+        return farmName.toLowerCase() === String(selectedFarm || '').toLowerCase();
+    });
+
+    return sortHistoryByTs(scopedPersisted);
+}
+
+function mergeFarmHistoryPoints(baseHistory, liveHistory) {
+    const mergedByTs = new Map();
+
+    (Array.isArray(baseHistory) ? baseHistory : []).forEach((point) => {
+        const ts = ((point && point.Ts) ? point.Ts : '').toString();
+        if (!ts) return;
+        mergedByTs.set(ts, { ...point, Ts: ts });
+    });
+
+    (Array.isArray(liveHistory) ? liveHistory : []).forEach((point) => {
+        const ts = ((point && point.Ts) ? point.Ts : '').toString();
+        if (!ts) return;
+        const existing = mergedByTs.get(ts) || { Ts: ts };
+        mergedByTs.set(ts, {
+            ...existing,
+            ...point,
+            Ts: ts,
+            AvgCPU: point && point.AvgCPU != null ? point.AvgCPU : existing.AvgCPU,
+            AvgRAM: point && point.AvgRAM != null ? point.AvgRAM : existing.AvgRAM,
+            TotalSessions: point && point.TotalSessions != null ? point.TotalSessions : existing.TotalSessions,
+            Farm: point && point.Farm ? point.Farm : existing.Farm
+        });
+    });
+
+    return Array.from(mergedByTs.values()).sort((a, b) => {
+        const ta = parseTimestampMs(a && a.Ts ? a.Ts : '');
+        const tb = parseTimestampMs(b && b.Ts ? b.Ts : '');
+        const va = Number.isNaN(ta) ? -Infinity : ta;
+        const vb = Number.isNaN(tb) ? -Infinity : tb;
+        return va - vb;
+    });
+}
+
+function resetFarmViewState() {
+    historySeeded = false;
+    farmHistoryApiAttempted = false;
+    seededLastTs = '';
+    allFarmHistory = [];
+    historyLoadedDaysByFarm = {};
+    farmViewHistory = [];
+    currentSnapshot = null;
+    currentVisibleServers = [];
+    currentLivePointFarm = '';
+    historyLoadInFlight = false;
+    if (historyLoadController) {
+        historyLoadController.abort();
+        historyLoadController = null;
+    }
+    if (historyLoadTimerId) {
+        clearInterval(historyLoadTimerId);
+        historyLoadTimerId = null;
+    }
+    setHistoryLoadStatus('');
+    cpuHistory.length = 0;
+    ramHistory.length = 0;
+    sessionsHistory.length = 0;
+    cpu24hHistory.length = 0;
+    ram24hHistory.length = 0;
+    sessions24hHistory.length = 0;
+    liveTsHistory.length = 0;
+    sessionsLiveTsHistory.length = 0;
+    ts24hHistory.length = 0;
+    sessions24hTsHistory.length = 0;
+}
+
+function getCurrentFarmHistoryKey() {
+    return String(selectedFarm || currentAllServersFarmName || 'All servers').trim().toLowerCase();
+}
+
+function getRequiredHistoryDays() {
+    const defs = getHistoryRangeDefs();
+    const selectedDef = defs.find(d => d.key === selectedHistoryRange) || defs[0];
+    const todayKey = getRomeDayKey(new Date());
+    const startMs = getUtcStartMsFromDayKey(selectedDef.startDayKey || todayKey);
+    const endMs = getUtcStartMsFromDayKey(todayKey);
+
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs < startMs) {
+        return 7;
+    }
+
+    const days = Math.floor((endMs - startMs) / (24 * 60 * 60 * 1000)) + 2;
+    return Math.max(1, Math.min(70, days));
+}
+
+function downsampleHistoryByCount(history, maxPoints) {
+    const source = Array.isArray(history) ? history : [];
+    const limit = Math.max(100, Number(maxPoints) || 2000);
+    if (source.length <= limit) {
+        return source;
+    }
+
+    const sampled = [];
+    const step = (source.length - 1) / (limit - 1);
+    for (let i = 0; i < limit; i++) {
+        const index = Math.round(i * step);
+        sampled.push(source[index]);
+    }
+    return sampled;
+}
+
+function setHistoryLoadStatus(text) {
+    const statusEl = document.getElementById('f-load-status');
+    if (!statusEl) return;
+    statusEl.textContent = text || '';
+}
+
+function startHistoryLoadProgress() {
+    historyLoadPct = 1;
+    setHistoryLoadStatus('Loading data - please wait (' + historyLoadPct + ' %)');
+    if (historyLoadTimerId) {
+        clearInterval(historyLoadTimerId);
+    }
+    historyLoadTimerId = setInterval(() => {
+        if (historyLoadPct < 90) {
+            historyLoadPct += 3;
+            setHistoryLoadStatus('Loading data - please wait (' + historyLoadPct + ' %)');
+        }
+    }, 250);
+}
+
+function finishHistoryLoadProgress(success) {
+    if (historyLoadTimerId) {
+        clearInterval(historyLoadTimerId);
+        historyLoadTimerId = null;
+    }
+    if (success) {
+        historyLoadPct = 100;
+        setHistoryLoadStatus('Loading data - please wait (' + historyLoadPct + ' %)');
+        setTimeout(() => {
+            if (!historyLoadInFlight) {
+                setHistoryLoadStatus('Historical data ready');
+            }
+        }, 250);
+    } else {
+        setHistoryLoadStatus('Historical data unavailable');
+    }
+}
+
+function rebuildFarmGraphsFromSnapshot(snapshot, visibleServers, summary, options) {
+    const resetLive = !!(options && options.resetLive);
+    const avgCpu = avgAcrossServers(visibleServers, 'CPU');
+    const avgRam = avgAcrossServers(visibleServers, 'RAM');
+    const totalSessions = Number((summary && summary.Total) || 0);
+    const currentTs = ((snapshot && snapshot.GeneratedAtUtc) || '').toString();
+    const scopedHistory = buildFarmScopedHistory(snapshot, visibleServers);
+
+    if (resetLive) {
+        cpuHistory.length = 0;
+        ramHistory.length = 0;
+        sessionsHistory.length = 0;
+        liveTsHistory.length = 0;
+        sessionsLiveTsHistory.length = 0;
+        seededLastTs = '';
+    }
+
+    if (cpuHistory.length === 0 && ramHistory.length === 0 && liveTsHistory.length === 0) {
+        const oneHourAgo = Date.now() - 60 * 60 * 1000;
+        scopedHistory.forEach((point) => {
+            if (!point || !point.Ts) return;
+            const ts = parseTimestampMs(point.Ts);
+            if (Number.isNaN(ts) || ts < oneHourAgo) return;
+            pushHistory(cpuHistory, point.AvgCPU != null ? point.AvgCPU : 0, 100);
+            pushHistory(ramHistory, point.AvgRAM != null ? point.AvgRAM : 0, 100);
+            pushHistory(sessionsHistory, getPointSessionsCount(point), 1000);
+            pushTsHistory(liveTsHistory, point.Ts);
+            pushTsHistory(sessionsLiveTsHistory, point.Ts);
+        });
+    }
+
+    if (currentTs && currentTs !== seededLastTs) {
+        pushHistory(cpuHistory, avgCpu != null ? avgCpu : 0, 100);
+        pushHistory(ramHistory, avgRam != null ? avgRam : 0, 100);
+        pushHistory(sessionsHistory, totalSessions, 1000);
+        pushTsHistory(liveTsHistory, currentTs);
+        pushTsHistory(sessionsLiveTsHistory, currentTs);
+        seededLastTs = currentTs;
+    }
+
+    const livePoint = {
+        Ts: currentTs,
+        AvgCPU: avgCpu != null ? avgCpu : 0,
+        AvgRAM: avgRam != null ? avgRam : 0,
+        TotalSessions: totalSessions,
+        Farm: selectedFarm
+    };
+    if (currentTs) {
+        farmViewHistory = farmViewHistory.filter((point) => {
+            const farmName = String((point && point.Farm) || '').toLowerCase();
+            return farmName === String(selectedFarm || '').toLowerCase() && String((point && point.Ts) || '') !== currentTs;
+        });
+        farmViewHistory.push(livePoint);
+    }
+
+    allFarmHistory = mergeFarmHistoryPoints(scopedHistory, farmViewHistory.filter((point) => {
+        return String((point && point.Farm) || '').toLowerCase() === String(selectedFarm || '').toLowerCase();
+    }));
+
+    historySeeded = cpuHistory.length > 0 || ramHistory.length > 0 || sessionsHistory.length > 0;
+    currentLivePointFarm = selectedFarm;
+}
+
+function setFarmDebugPanel(lines) {
+    if (!debugMode) return;
+    const el = document.getElementById('farm-debug');
+    if (!el) return;
+    el.style.display = 'block';
+    el.textContent = lines.join('\n');
+}
+
+async function refreshFarmDebugPanel() {
+    if (!debugMode) return;
+    try {
+        const res = await fetch('/api/history-debug', { cache: 'no-store' });
+        if (res.status === 401) {
+            window.location.href = '/login';
+            return;
+        }
+        if (!res.ok) {
+            setFarmDebugPanel(['history-debug unavailable: HTTP ' + res.status]);
+            return;
+        }
+        const d = await res.json();
+        setFarmDebugPanel([
+            '[farm debug]',
+            'historySeeded=' + historySeeded + ', seededLastTs=' + (seededLastTs || '-'),
+            'persistedAttempts=' + farmPersistedAttempts,
+            'sqliteEnabled=' + !!d.SqliteEnabled,
+            'dbExists=' + !!d.DbExists,
+            'farmRowsLast8Days=' + (d.FarmRowsLast8Days ?? 0),
+            'farmLatestTs=' + (d.FarmLatestTsUtc || '-'),
+            'snapshotGeneratedAt=' + (((d.Snapshot || {}).GeneratedAtUtc) || '-'),
+            'snapshotServers=' + (((d.Snapshot || {}).ServersCount) ?? 0),
+            'snapshotSessions=' + (((d.Snapshot || {}).SessionsCount) ?? 0),
+            'dbQueryError=' + (d.DbQueryError || '-'),
+            'snapshotReadError=' + (((d.Snapshot || {}).SnapshotReadError) || '-')
+        ]);
+    } catch (e) {
+        setFarmDebugPanel(['history-debug error: ' + (e && e.message ? e.message : e)]);
+    }
+}
+
+function clampValue(value, maxValue) {
+    const n = Number(value);
+    if (Number.isNaN(n)) return 0;
+        return Math.min(maxValue, Math.max(0, n));
+}
+
+function pushHistory(history, value, maxValue) {
+        history.push(clampValue(value, maxValue));
+    if (history.length > historyMax) history.shift();
+}
+
+function pushTsHistory(history, value) {
+    const ts = (value || '').toString();
+    history.push(ts);
+    if (history.length > historyMax) history.shift();
+}
+
+function trimLiveHistoryToLastHour() {
+    // Keep only last hour of data in live graphs
+    const oneHourMs = 60 * 60 * 1000;
+    const cutoffTime = Date.now() - oneHourMs;
+    
+    // Find the index where data is still within the last hour
+    let keepFromIndex = -1;
+    let hasValidLiveTs = false;
+    for (let i = 0; i < liveTsHistory.length; i++) {
+        const ts = parseTimestampMs(liveTsHistory[i]);
+        if (!Number.isNaN(ts)) {
+            hasValidLiveTs = true;
+        }
+        if (!Number.isNaN(ts) && ts >= cutoffTime) {
+            keepFromIndex = i;
+            break;
+        }
+    }
+    
+    // Trim all live history arrays to keep only last hour
+    if (keepFromIndex > 0) {
+        cpuHistory.splice(0, keepFromIndex);
+        ramHistory.splice(0, keepFromIndex);
+        liveTsHistory.splice(0, keepFromIndex);
+    } else if (keepFromIndex === -1 && hasValidLiveTs) {
+        cpuHistory.length = 0;
+        ramHistory.length = 0;
+        liveTsHistory.length = 0;
+    }
+
+    let keepSessionsFromIndex = -1;
+    let hasValidSessionsTs = false;
+    for (let i = 0; i < sessionsLiveTsHistory.length; i++) {
+        const ts = parseTimestampMs(sessionsLiveTsHistory[i]);
+        if (!Number.isNaN(ts)) {
+            hasValidSessionsTs = true;
+        }
+        if (!Number.isNaN(ts) && ts >= cutoffTime) {
+            keepSessionsFromIndex = i;
+            break;
+        }
+    }
+
+    if (keepSessionsFromIndex > 0) {
+        sessionsHistory.splice(0, keepSessionsFromIndex);
+        sessionsLiveTsHistory.splice(0, keepSessionsFromIndex);
+    } else if (keepSessionsFromIndex === -1 && hasValidSessionsTs) {
+        sessionsHistory.length = 0;
+        sessionsLiveTsHistory.length = 0;
+    }
+}
+
+function getPointSessionsCount(p) {
+    if (p && p.TotalSessions != null) {
+        const n = Number(p.TotalSessions);
+        if (!Number.isNaN(n)) return n;
+    }
+    if (p && p.AvgSessions != null) {
+        const n = Number(p.AvgSessions);
+        if (!Number.isNaN(n)) return n;
+    }
+    return 0;
+}
+
+function drawTaskGraph(canvas, history, strokeColor, fillColor, minScaleMax, xPointSpan, tsHistory, rangeStartMs, rangeEndMs) {
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const width = Math.max(1, Math.floor(rect.width));
+    const height = Math.max(1, Math.floor(rect.height));
+    const dpr = window.devicePixelRatio || 1;
+    if (canvas.width !== Math.floor(width * dpr) || canvas.height !== Math.floor(height * dpr)) {
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+    }
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = '#0c1d33';
+    ctx.fillRect(0, 0, width, height);
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 5; i++) {
+        const y = (height / 5) * i;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+    }
+    for (let i = 1; i < 9; i++) {
+        const x = (width / 9) * i;
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+    }
+    if (history.length === 0) return;
+
+    const scaleMax = Math.max(minScaleMax, ...history, 1);
+    const useTimeWindow = Array.isArray(tsHistory) &&
+        tsHistory.length === history.length &&
+        Number.isFinite(rangeStartMs) &&
+        Number.isFinite(rangeEndMs) &&
+        rangeEndMs > rangeStartMs;
+    const pointSpan = Number.isFinite(xPointSpan) && xPointSpan > 1 ? xPointSpan : historyMax;
+    const step = width / Math.max(1, pointSpan - 1);
+    const xStart = width - (history.length - 1) * step;
+    ctx.beginPath();
+    let firstX = null;
+    let lastX = null;
+    for (let i = 0; i < history.length; i++) {
+        let x = xStart + i * step;
+        if (useTimeWindow) {
+            const t = parseTimestampMs(tsHistory[i]);
+            const clamped = Number.isNaN(t)
+                ? rangeStartMs
+                : Math.min(rangeEndMs, Math.max(rangeStartMs, t));
+            const ratio = (clamped - rangeStartMs) / (rangeEndMs - rangeStartMs);
+            x = ratio * width;
+        }
+        const y = height - (history[i] / scaleMax) * height;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        if (firstX == null) firstX = x;
+        lastX = x;
+    }
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.lineTo(lastX == null ? 0 : lastX, height);
+    ctx.lineTo(firstX == null ? 0 : firstX, height);
+    ctx.closePath();
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+}
+
+function renderGraphs() {
+    // Trim live graphs to last hour before rendering
+    trimLiveHistoryToLastHour();
+    
+    // Pass actual data length as xPointSpan so graphs scale correctly regardless of available data
+    drawTaskGraph(cpuCanvas, cpuHistory, '#48d9ff', 'rgba(72,217,255,0.22)', 100, cpuHistory.length);
+    drawTaskGraph(ramCanvas, ramHistory, '#8bff75', 'rgba(139,255,117,0.22)', 100, ramHistory.length);
+    drawTaskGraph(sessionsCanvas, sessionsHistory, '#fbbf24', 'rgba(251,191,36,0.22)', 10, sessionsHistory.length);
+
+    const sessionsMaxEl = document.getElementById('sessions-max');
+    if (sessionsMaxEl) {
+        if (sessionsHistory.length > 0) {
+            sessionsMaxEl.textContent = Math.round(Math.max(...sessionsHistory)).toString();
+        } else {
+            sessionsMaxEl.textContent = '-';
+        }
+    }
+
+    const hasSelectedWindow = Number.isFinite(selectedHistoryWindowStartMs) &&
+        Number.isFinite(selectedHistoryWindowEndMs) &&
+        selectedHistoryWindowEndMs > selectedHistoryWindowStartMs;
+
+    drawTaskGraph(
+        cpu24hCanvas,
+        cpu24hHistory,
+        '#48d9ff',
+        'rgba(72,217,255,0.22)',
+        100,
+        cpu24hHistory.length,
+        hasSelectedWindow ? ts24hHistory : null,
+        hasSelectedWindow ? selectedHistoryWindowStartMs : null,
+        hasSelectedWindow ? selectedHistoryWindowEndMs : null
+    );
+    drawTaskGraph(
+        ram24hCanvas,
+        ram24hHistory,
+        '#8bff75',
+        'rgba(139,255,117,0.22)',
+        100,
+        ram24hHistory.length,
+        hasSelectedWindow ? ts24hHistory : null,
+        hasSelectedWindow ? selectedHistoryWindowStartMs : null,
+        hasSelectedWindow ? selectedHistoryWindowEndMs : null
+    );
+    drawTaskGraph(
+        sessions24hCanvas,
+        sessions24hHistory,
+        '#fbbf24',
+        'rgba(251,191,36,0.22)',
+        10,
+        sessions24hHistory.length,
+        hasSelectedWindow ? sessions24hTsHistory : null,
+        hasSelectedWindow ? selectedHistoryWindowStartMs : null,
+        hasSelectedWindow ? selectedHistoryWindowEndMs : null
+    );
+}
+
+function avgAcrossServers(servers, key) {
+    const vals = (servers || []).map(s => Number(s[key])).filter(v => !Number.isNaN(v));
+    if (vals.length === 0) return null;
+    return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+}
+
+const formatRomeTime = (value) => {
+    if (!value) return '-';
+    const tsMs = parseTimestampMs(value);
+    const dt = Number.isNaN(tsMs) ? new Date(value) : new Date(tsMs);
+    if (Number.isNaN(dt.getTime())) return value;
+    return dt.toLocaleString('it-IT', {
+        timeZone: 'Europe/Rome',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false
+    });
+};
+
+function formatRomeTick(value) {
+    if (!value) return '-';
+    const tsMs = parseTimestampMs(value);
+    const dt = Number.isNaN(tsMs) ? new Date(value) : new Date(tsMs);
+    if (Number.isNaN(dt.getTime())) return value;
+    return dt.toLocaleString('it-IT', {
+        timeZone: 'Europe/Rome',
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+}
+
+function setAxisLabels(leftId, rightId, leftVal, rightVal) {
+    const leftEl = document.getElementById(leftId);
+    const rightEl = document.getElementById(rightId);
+    if (leftEl) leftEl.textContent = formatRomeTick(leftVal);
+    if (rightEl) rightEl.textContent = formatRomeTick(rightVal);
+}
+
+function parseTimestampMs(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return Number.NaN;
+
+    const hasExplicitZone = /(?:Z|[+\-]\d{2}:?\d{2})$/i.test(raw);
+    let normalized = raw;
+    if (!hasExplicitZone) {
+        normalized = raw.replace(' ', 'T') + 'Z';
+    }
+
+    const ms = Date.parse(normalized);
+    if (!Number.isNaN(ms)) {
+        return ms;
+    }
+
+    return Date.parse(raw);
+}
+
+function getRomeDateParts(dateObj) {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Europe/Rome',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).formatToParts(dateObj || new Date());
+
+    const map = {};
+    parts.forEach(p => {
+        if (p && p.type && p.type !== 'literal') {
+            map[p.type] = p.value;
+        }
+    });
+
+    const year = Number(map.year);
+    const month = Number(map.month);
+    const day = Number(map.day);
+
+    if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) {
+        return null;
+    }
+
+    return {
+        year,
+        month,
+        day,
+        key: String(year) + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0')
+    };
+}
+
+function getRomeDayKey(dateObj) {
+    const rome = getRomeDateParts(dateObj);
+    return rome ? rome.key : '';
+}
+
+function getDayKeyFromUtcDate(dateObj) {
+    const y = dateObj.getUTCFullYear();
+    const m = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getUTCDate()).padStart(2, '0');
+    return y + '-' + m + '-' + d;
+}
+
+function sortHistoryByTs(history) {
+    return [...(Array.isArray(history) ? history : [])].sort((a, b) => {
+        const ta = parseTimestampMs(a && a.Ts ? a.Ts : '');
+        const tb = parseTimestampMs(b && b.Ts ? b.Ts : '');
+        const va = Number.isNaN(ta) ? -Infinity : ta;
+        const vb = Number.isNaN(tb) ? -Infinity : tb;
+        return va - vb;
+    });
+}
+
+function getRomeDayKeyFromTimestamp(tsValue) {
+    if (!tsValue) return '';
+    const tsMs = parseTimestampMs(tsValue);
+    const dt = Number.isNaN(tsMs) ? new Date(tsValue) : new Date(tsMs);
+    if (Number.isNaN(dt.getTime())) return '';
+    return getRomeDayKey(dt);
+}
+
+function formatRangeDayLabel(dateObj) {
+    const weekday = dateObj.toLocaleDateString('en-GB', {
+        timeZone: 'Europe/Rome',
+        weekday: 'long'
+    });
+    const dm = dateObj.toLocaleDateString('en-GB', {
+        timeZone: 'Europe/Rome',
+        day: 'numeric',
+        month: 'numeric'
+    });
+    const weekdayTitle = weekday ? (weekday.charAt(0).toUpperCase() + weekday.slice(1)) : weekday;
+    return weekdayTitle + ' ' + dm;
+}
+
+function formatAxisDayLabel(dayKey, hourText) {
+    const parts = (dayKey || '').split('-');
+    if (parts.length !== 3) {
+        return hourText;
+    }
+
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+    const day = Number(parts[2]);
+    if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) {
+        return hourText;
+    }
+
+    const dd = String(day).padStart(2, '0');
+    const mm = String(month).padStart(2, '0');
+    return dd + '/' + mm + ' ' + hourText;
+}
+
+function getUtcStartMsFromDayKey(dayKey) {
+    const parts = (dayKey || '').split('-');
+    if (parts.length !== 3) return null;
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+    const day = Number(parts[2]);
+    if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) return null;
+    return Date.UTC(year, month - 1, day);
+}
+
+function addDaysToDayKey(dayKey, offsetDays) {
+    const startMs = getUtcStartMsFromDayKey(dayKey);
+    if (!Number.isFinite(startMs)) return '';
+    const dt = new Date(startMs + (offsetDays * 24 * 60 * 60 * 1000));
+    return getDayKeyFromUtcDate(dt);
+}
+
+function buildDayKeyRange(startDayKey, endDayKey) {
+    const startMs = getUtcStartMsFromDayKey(startDayKey);
+    const endMs = getUtcStartMsFromDayKey(endDayKey);
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs < startMs) {
+        return [];
+    }
+
+    const keys = [];
+    for (let ts = startMs; ts <= endMs; ts += 24 * 60 * 60 * 1000) {
+        keys.push(getDayKeyFromUtcDate(new Date(ts)));
+    }
+    return keys;
+}
+
+function getMondayStartDayKey(dayKey) {
+    const startMs = getUtcStartMsFromDayKey(dayKey);
+    if (!Number.isFinite(startMs)) return '';
+    const dt = new Date(startMs);
+    const dow = dt.getUTCDay();
+    const daysFromMonday = (dow + 6) % 7;
+    return addDaysToDayKey(dayKey, -daysFromMonday);
+}
+
+function formatDayKeyForTitle(dayKey) {
+    const parts = (dayKey || '').split('-');
+    if (parts.length !== 3) return dayKey || '-';
+    return parts[2] + '/' + parts[1] + '/' + parts[0];
+}
+
+function clampSelectDayKey(dayKey, minDayKey, maxDayKey) {
+    if ([dayKey, minDayKey, maxDayKey].some(v => !v)) return '';
+    if (dayKey < minDayKey) return minDayKey;
+    if (dayKey > maxDayKey) return maxDayKey;
+    return dayKey;
+}
+
+function formatRomeHourMinute(value) {
+    if (!value) return '-';
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return '-';
+    return dt.toLocaleTimeString('it-IT', {
+        timeZone: 'Europe/Rome',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+}
+
+function setAxisLabelsText(leftId, rightId, leftText, rightText) {
+    const leftEl = document.getElementById(leftId);
+    const rightEl = document.getElementById(rightId);
+    if (leftEl) leftEl.textContent = leftText || '-';
+    if (rightEl) rightEl.textContent = rightText || '-';
+}
+
+function getHistoryRangeDefs() {
+    const todayKey = getRomeDayKey(new Date());
+    if (!todayKey) {
+        return [{ key: 'today', label: 'Today', startDayKey: '', endDayKey: '', openEndedNow: true }];
+    }
+
+    const yesterdayKey = addDaysToDayKey(todayKey, -1);
+    const mondayThisWeekKey = getMondayStartDayKey(todayKey);
+    const mondayLastWeekKey = addDaysToDayKey(mondayThisWeekKey, -7);
+    const sundayLastWeekKey = addDaysToDayKey(mondayThisWeekKey, -1);
+
+    const todayParts = todayKey.split('-').map(n => Number(n));
+    const thisMonthStartKey = todayParts.length === 3 ? (todayParts[0] + '-' + String(todayParts[1]).padStart(2, '0') + '-01') : todayKey;
+
+    const thisMonthStartMs = getUtcStartMsFromDayKey(thisMonthStartKey);
+    const thisMonthStartDate = new Date(thisMonthStartMs);
+    const lastMonthEndDate = new Date(Date.UTC(thisMonthStartDate.getUTCFullYear(), thisMonthStartDate.getUTCMonth(), 0));
+    const lastMonthStartDate = new Date(Date.UTC(lastMonthEndDate.getUTCFullYear(), lastMonthEndDate.getUTCMonth(), 1));
+    const lastMonthStartKey = getDayKeyFromUtcDate(lastMonthStartDate);
+    const lastMonthEndKey = getDayKeyFromUtcDate(lastMonthEndDate);
+
+    if (!selectedCustomDayKey) {
+        selectedCustomDayKey = yesterdayKey || todayKey;
+    }
+
+    const selectDayMin = addDaysToDayKey(todayKey, -60);
+    selectedCustomDayKey = clampSelectDayKey(selectedCustomDayKey, selectDayMin, todayKey) || todayKey;
+
+    return [
+        { key: 'today', label: 'Today', startDayKey: todayKey, endDayKey: todayKey, openEndedNow: true },
+        { key: 'yesterday', label: 'Yesterday', startDayKey: yesterdayKey, endDayKey: yesterdayKey, openEndedNow: false },
+        { key: 'selectday', label: 'Select Day', startDayKey: selectedCustomDayKey, endDayKey: selectedCustomDayKey, openEndedNow: false },
+        { key: 'thisweek', label: 'This Week', startDayKey: mondayThisWeekKey, endDayKey: todayKey, openEndedNow: true },
+        { key: 'lastweek', label: 'Last Week', startDayKey: mondayLastWeekKey, endDayKey: sundayLastWeekKey, openEndedNow: false },
+        { key: 'thismonth', label: 'This Month', startDayKey: thisMonthStartKey, endDayKey: todayKey, openEndedNow: true },
+        { key: 'lastmonth', label: 'Last Month', startDayKey: lastMonthStartKey, endDayKey: lastMonthEndKey, openEndedNow: false }
+    ];
+}
+
+function filterHistoryByRange(history, rangeDef) {
+    if (!Array.isArray(history) || history.length === 0 || !rangeDef || !rangeDef.startDayKey || !rangeDef.endDayKey) {
+        return [];
+    }
+
+    const sortedHistory = sortHistoryByTs(history);
+    const allowedDayKeys = new Set(buildDayKeyRange(rangeDef.startDayKey, rangeDef.endDayKey));
+    if (allowedDayKeys.size === 0) return [];
+
+    return sortedHistory.filter(p => {
+        const dayKey = getRomeDayKeyFromTimestamp(p && p.Ts ? p.Ts : '');
+        return allowedDayKeys.has(dayKey);
+    });
+}
+
+function configureSelectDayInput() {
+    const dateInput = document.getElementById('select-day-input');
+    if (!dateInput) return;
+
+    const todayKey = getRomeDayKey(new Date());
+    if (!todayKey) return;
+
+    const minKey = addDaysToDayKey(todayKey, -60);
+    selectedCustomDayKey = clampSelectDayKey(selectedCustomDayKey || todayKey, minKey, todayKey) || todayKey;
+
+    dateInput.min = minKey;
+    dateInput.max = todayKey;
+    dateInput.value = selectedCustomDayKey;
+}
+
+function openSelectDayPicker() {
+    const dateInput = document.getElementById('select-day-input');
+    if (!dateInput) return;
+
+    configureSelectDayInput();
+    try {
+        if (typeof dateInput.showPicker === 'function') {
+            dateInput.showPicker();
+        } else {
+            dateInput.focus();
+            dateInput.click();
+        }
+    }
+    catch {
+        dateInput.focus();
+        dateInput.click();
+    }
+}
+
+function renderHistoryRangeButtons() {
+    const wrap = document.getElementById('range-buttons');
+    if (!wrap) return;
+
+    const defs = getHistoryRangeDefs();
+    if (!defs.some(d => d.key === selectedHistoryRange)) {
+        selectedHistoryRange = 'today';
+    }
+
+    configureSelectDayInput();
+    
+    updateOldestDataInfo();
+
+    wrap.innerHTML = '';
+    defs.forEach(def => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'range-btn' + (selectedHistoryRange === def.key ? ' active' : '');
+        b.textContent = def.label;
+        b.addEventListener('click', () => {
+            selectedHistoryRange = def.key;
+            if (def.key === 'selectday') {
+                openSelectDayPicker();
+            }
+            applySelectedHistoryRange();
+            renderHistoryRangeButtons();
+        });
+        wrap.appendChild(b);
+    });
+}
+
+function updateOldestDataInfo() {
+    const info = document.getElementById('oldest-data-info');
+    if (!info) return;
+    
+    let displayDate = '';
+    if (oldestDataTs) {
+        try {
+            const tsMs = parseTimestampMs(oldestDataTs);
+            const dt = Number.isNaN(tsMs) ? new Date(oldestDataTs) : new Date(tsMs);
+            if (!Number.isNaN(dt.getTime())) {
+                const dd = String(dt.getDate()).padStart(2, '0');
+                const mm = String(dt.getMonth() + 1).padStart(2, '0');
+                const yyyy = dt.getFullYear();
+                displayDate = dd + '/' + mm + '/' + yyyy;
+            }
+        } catch (e) {
+            console.error('Failed to parse oldest data timestamp:', oldestDataTs, e);
+        }
+    }
+    
+    if (!displayDate) {
+        const today = new Date();
+        const fallbackDate = new Date(today);
+        fallbackDate.setDate(fallbackDate.getDate() - 70);
+        const dd = String(fallbackDate.getDate()).padStart(2, '0');
+        const mm = String(fallbackDate.getMonth() + 1).padStart(2, '0');
+        const yyyy = fallbackDate.getFullYear();
+        displayDate = dd + '/' + mm + '/' + yyyy;
+    }
+    
+    info.textContent = '(Oldest data collected on ' + displayDate + ')';
+}
+
+function applySelectedHistoryRange() {
+    const defs = getHistoryRangeDefs();
+    const selectedDef = defs.find(d => d.key === selectedHistoryRange) || defs[0];
+    const selectedHistory = downsampleHistoryByCount(filterHistoryByRange(sortHistoryByTs(allFarmHistory), selectedDef), 2000);
+    let selectedSessionHistory = selectedHistory.filter((point) => {
+        return point && (point.TotalSessions != null || point.AvgSessions != null);
+    });
+    if (selectedSessionHistory.length === 0 && !isAllServersFarm(selectedFarm)) {
+        selectedSessionHistory = filterHistoryByRange(
+            sortHistoryByTs(farmViewHistory.filter((point) => String((point && point.Farm) || '').toLowerCase() === String(selectedFarm || '').toLowerCase())),
+            selectedDef
+        );
+    }
+    selectedSessionHistory = downsampleHistoryByCount(selectedSessionHistory, 2000);
+    const titleEl = document.getElementById('history-range-title');
+    if (titleEl) {
+        let title = selectedDef.label;
+        if (selectedDef.key === 'selectday' && selectedDef.startDayKey) {
+            title += ' (' + formatDayKeyForTitle(selectedDef.startDayKey) + ')';
+        }
+        titleEl.textContent = 'Selected range: ' + title;
+    }
+
+    selectedHistoryWindowStartMs = null;
+    selectedHistoryWindowEndMs = null;
+
+    cpu24hHistory.length = 0;
+    ram24hHistory.length = 0;
+    sessions24hHistory.length = 0;
+    ts24hHistory.length = 0;
+    sessions24hTsHistory.length = 0;
+
+    selectedHistory.forEach(p => {
+        cpu24hHistory.push(clampValue((p && p.AvgCPU != null) ? p.AvgCPU : 0, 100));
+        ram24hHistory.push(clampValue((p && p.AvgRAM != null) ? p.AvgRAM : 0, 100));
+        ts24hHistory.push(((p && p.Ts) ? p.Ts : '').toString());
+    });
+
+    selectedSessionHistory.forEach(p => {
+        sessions24hHistory.push(clampValue(getPointSessionsCount(p), 1000));
+        sessions24hTsHistory.push(((p && p.Ts) ? p.Ts : '').toString());
+    });
+
+    let maxCpu = null;
+    let maxRam = null;
+    let maxSessions = null;
+    selectedSessionHistory.forEach(p => {
+        const sessions = Number(getPointSessionsCount(p));
+        if (!Number.isNaN(sessions)) {
+            maxSessions = (maxSessions == null) ? sessions : Math.max(maxSessions, sessions);
+        }
+    });
+
+    selectedHistory.forEach(p => {
+        const cpu = (p && p.AvgCPU != null) ? Number(p.AvgCPU) : null;
+        const ram = (p && p.AvgRAM != null) ? Number(p.AvgRAM) : null;
+
+        if (cpu != null && !Number.isNaN(cpu)) {
+            maxCpu = (maxCpu == null) ? cpu : Math.max(maxCpu, cpu);
+        }
+        if (ram != null && !Number.isNaN(ram)) {
+            maxRam = (maxRam == null) ? ram : Math.max(maxRam, ram);
+        }
+    });
+
+    document.getElementById('cpu-24h-now').textContent = (maxCpu != null) ? ('Max: ' + maxCpu.toFixed(1) + '%') : 'Max: N/A';
+    document.getElementById('ram-24h-now').textContent = (maxRam != null) ? ('Max: ' + maxRam.toFixed(1) + '%') : 'Max: N/A';
+    document.getElementById('sessions-24h-now').textContent = (maxSessions != null) ? ('Max: ' + Math.round(maxSessions).toString()) : 'Max: N/A';
+
+    if (selectedDef.startDayKey && selectedDef.endDayKey) {
+        const rangeStartMs = getUtcStartMsFromDayKey(selectedDef.startDayKey);
+        const rangeEndMs = getUtcStartMsFromDayKey(selectedDef.endDayKey);
+        if (Number.isFinite(rangeStartMs) && Number.isFinite(rangeEndMs)) {
+            selectedHistoryWindowStartMs = rangeStartMs;
+            selectedHistoryWindowEndMs = rangeEndMs + (24 * 60 * 60 * 1000);
+        }
+
+        const leftText = formatAxisDayLabel(selectedDef.startDayKey, '00:00');
+        let rightText = formatAxisDayLabel(selectedDef.endDayKey, '24:00');
+        if (selectedDef.openEndedNow) {
+            if (selectedDef.key === 'thisweek' || selectedDef.key === 'thismonth') {
+                const endOfTodayMs = getUtcStartMsFromDayKey(selectedDef.endDayKey) + (24 * 60 * 60 * 1000);
+                selectedHistoryWindowEndMs = endOfTodayMs;
+                // rightText already set to formatAxisDayLabel(endDayKey, '24:00') above
+            } else {
+                const nowMs = Date.now();
+                selectedHistoryWindowEndMs = nowMs;
+                rightText = formatRomeHourMinute(nowMs);
+            }
+        }
+
+        setAxisLabelsText('cpu-24h-x-left', 'cpu-24h-x-right', leftText, rightText);
+        setAxisLabelsText('ram-24h-x-left', 'ram-24h-x-right', leftText, rightText);
+        setAxisLabelsText('sessions-24h-x-left', 'sessions-24h-x-right', leftText, rightText);
+    } else {
+        const leftTs = ts24hHistory.length > 0 ? ts24hHistory[0] : '';
+        const rightTs = ts24hHistory.length > 0 ? ts24hHistory[ts24hHistory.length - 1] : '';
+        const leftSessionsTs = sessions24hTsHistory.length > 0 ? sessions24hTsHistory[0] : '';
+        const rightSessionsTs = sessions24hTsHistory.length > 0 ? sessions24hTsHistory[sessions24hTsHistory.length - 1] : '';
+        setAxisLabels('cpu-24h-x-left', 'cpu-24h-x-right', leftTs, rightTs);
+        setAxisLabels('ram-24h-x-left', 'ram-24h-x-right', leftTs, rightTs);
+        setAxisLabels('sessions-24h-x-left', 'sessions-24h-x-right', leftSessionsTs, rightSessionsTs);
+    }
+
+    renderGraphs();
+
+    const farmKey = getCurrentFarmHistoryKey();
+    const requiredDays = getRequiredHistoryDays();
+    const loadedDays = Number(historyLoadedDaysByFarm[farmKey] || 0);
+    if (loadedDays < requiredDays) {
+        void ensurePersistedFarmHistoryLoaded(requiredDays);
+    }
+}
+
+const selectDayInputEl = document.getElementById('select-day-input');
+if (selectDayInputEl) {
+    selectDayInputEl.addEventListener('change', () => {
+        const picked = (selectDayInputEl.value || '').trim();
+        if (!picked) return;
+
+        const todayKey = getRomeDayKey(new Date());
+        const minKey = addDaysToDayKey(todayKey, -60);
+        const clamped = clampSelectDayKey(picked, minKey, todayKey);
+        if (!clamped) return;
+
+        selectedCustomDayKey = clamped;
+        selectedHistoryRange = 'selectday';
+        applySelectedHistoryRange();
+        renderHistoryRangeButtons();
+    });
+}
+
+async function refreshData() {
+    let nextDelayMs = 10000;
+    try {
+        const res = await fetch('/api/data', { cache: 'no-store' });
+        if (res.status === 401) { window.location.href = '/login'; return; }
+        const snapshot = await res.json();
+        currentSnapshot = snapshot;
+        applyFarmSelection(snapshot);
+        const servers = filterSnapshotByFarm(snapshot);
+        currentVisibleServers = servers.slice();
+        const summary = buildSummaryForFarm(snapshot, servers);
+
+        const avgCpu = avgAcrossServers(servers, 'CPU');
+        const avgRam = avgAcrossServers(servers, 'RAM');
+        const totalSessions = Number(summary.Total || 0);
+        rebuildFarmGraphsFromSnapshot(snapshot, servers, summary, {
+            resetLive: currentLivePointFarm && currentLivePointFarm.toLowerCase() !== String(selectedFarm || '').toLowerCase()
+        });
+
+        document.getElementById('f-servers').textContent = servers.length;
+        document.getElementById('f-total').textContent = Math.round(totalSessions).toString();
+        document.getElementById('f-sessions').textContent = Math.round(totalSessions).toString();
+        document.getElementById('f-active').textContent = Math.round(Number(summary.Active || 0)).toString();
+        document.getElementById('f-disc').textContent = Math.round(Number(summary.Disconnected || 0)).toString();
+        document.getElementById('f-cpu').textContent = avgCpu != null ? avgCpu + '%' : 'N/A';
+        document.getElementById('f-ram').textContent = avgRam != null ? avgRam + '%' : 'N/A';
+        document.getElementById('cpu-now').textContent = avgCpu != null ? avgCpu + '%' : 'N/A';
+        document.getElementById('ram-now').textContent = avgRam != null ? avgRam + '%' : 'N/A';
+        document.getElementById('sessions-now').textContent = Math.round(totalSessions).toString();
+        document.getElementById('f-ts').textContent = formatRomeTime(snapshot.GeneratedAtUtc);
+
+        oldestDataTs = snapshot.OldestDataTs || '';
+
+        renderHistoryRangeButtons();
+        applySelectedHistoryRange();
+
+        const liveLeftTs = liveTsHistory.length > 0 ? liveTsHistory[0] : '';
+        const liveRightTs = liveTsHistory.length > 0 ? liveTsHistory[liveTsHistory.length - 1] : '';
+        const liveSessionsLeftTs = sessionsLiveTsHistory.length > 0 ? sessionsLiveTsHistory[0] : '';
+        const liveSessionsRightTs = sessionsLiveTsHistory.length > 0 ? sessionsLiveTsHistory[sessionsLiveTsHistory.length - 1] : '';
+        setAxisLabels('cpu-x-left', 'cpu-x-right', liveLeftTs, liveRightTs);
+        setAxisLabels('ram-x-left', 'ram-x-right', liveLeftTs, liveRightTs);
+        setAxisLabels('sessions-x-left', 'sessions-x-right', liveSessionsLeftTs, liveSessionsRightTs);
+
+        renderGraphs();
+        const requiredDays = getRequiredHistoryDays();
+        void ensurePersistedFarmHistoryLoaded(requiredDays);
+        await refreshFarmDebugPanel();
+        nextDelayMs = (snapshot.NextCycleDelaySeconds || 10) * 1000;
+    } catch (err) {
+        console.warn('Farm refresh failed', err);
+        await refreshFarmDebugPanel();
+    }
+    if (refreshTimerId) {
+        clearTimeout(refreshTimerId);
+    }
+    refreshTimerId = setTimeout(refreshData, nextDelayMs);
+}
+
+async function ensurePersistedFarmHistoryLoaded(requiredDaysParam) {
+    const farmKey = getCurrentFarmHistoryKey();
+    const requiredDays = Math.max(1, Math.min(70, Number(requiredDaysParam) || getRequiredHistoryDays()));
+    const loadedDays = Number(historyLoadedDaysByFarm[farmKey] || 0);
+    if (loadedDays >= requiredDays || historyLoadInFlight) {
+        return;
+    }
+
+    farmHistoryApiAttempted = true;
+    historyLoadInFlight = true;
+    startHistoryLoadProgress();
+    try {
+        farmPersistedAttempts++;
+        if (historyLoadController) {
+            historyLoadController.abort();
+        }
+        historyLoadController = new AbortController();
+
+        const params = new URLSearchParams();
+        params.set('days', String(requiredDays));
+        params.set('farm', selectedFarm || currentAllServersFarmName || 'All servers');
+
+        const persistedRes = await fetch('/api/farm-history?' + params.toString(), { cache: 'no-store', signal: historyLoadController.signal });
+        if (persistedRes.status === 401) {
+            window.location.href = '/login';
+            return;
+        }
+        if (!persistedRes.ok) {
+            finishHistoryLoadProgress(false);
+            return;
+        }
+
+        const persistedFarmHistory = await persistedRes.json();
+        if (!Array.isArray(persistedFarmHistory) || persistedFarmHistory.length === 0) {
+            finishHistoryLoadProgress(false);
+            return;
+        }
+
+        allFarmHistory = sortHistoryByTs(persistedFarmHistory.slice());
+        historyLoadedDaysByFarm[farmKey] = requiredDays;
+
+        if (!currentSnapshot) {
+            finishHistoryLoadProgress(true);
+            return;
+        }
+
+        const servers = filterSnapshotByFarm(currentSnapshot);
+        const summary = buildSummaryForFarm(currentSnapshot, servers);
+        rebuildFarmGraphsFromSnapshot(currentSnapshot, servers, summary, { resetLive: true });
+
+        renderHistoryRangeButtons();
+        applySelectedHistoryRange();
+
+        const liveLeftTs = liveTsHistory.length > 0 ? liveTsHistory[0] : '';
+        const liveRightTs = liveTsHistory.length > 0 ? liveTsHistory[liveTsHistory.length - 1] : '';
+        const liveSessionsLeftTs = sessionsLiveTsHistory.length > 0 ? sessionsLiveTsHistory[0] : '';
+        const liveSessionsRightTs = sessionsLiveTsHistory.length > 0 ? sessionsLiveTsHistory[sessionsLiveTsHistory.length - 1] : '';
+        setAxisLabels('cpu-x-left', 'cpu-x-right', liveLeftTs, liveRightTs);
+        setAxisLabels('ram-x-left', 'ram-x-right', liveLeftTs, liveRightTs);
+        setAxisLabels('sessions-x-left', 'sessions-x-right', liveSessionsLeftTs, liveSessionsRightTs);
+        renderGraphs();
+        finishHistoryLoadProgress(true);
+    } catch (persistedErr) {
+        if (persistedErr && persistedErr.name === 'AbortError') {
+            setHistoryLoadStatus('');
+        } else {
+            console.warn('Persisted farm history load failed', persistedErr);
+            finishHistoryLoadProgress(false);
+        }
+    } finally {
+        historyLoadInFlight = false;
+        historyLoadController = null;
+    }
+
+    if (debugMode && !historySeeded) {
+        console.warn('Farm persisted preload not seeded yet', { attempt: farmPersistedAttempts });
+    }
+}
+
+// Farm selection is display-only on this page; switching farm happens from the dashboard.
+
+function initHeaderLogo() {
+  const headerLogoEl = document.getElementById('header-logo');
+  if (!headerLogoEl) {
+    return;
+  }
+
+  const fallback = headerLogoEl.parentElement?.querySelector('.logo-fallback');
+  let slowLoadTimer = null;
+
+  const markReady = () => {
+    if (slowLoadTimer) {
+      clearTimeout(slowLoadTimer);
+    }
+    headerLogoEl.classList.add('is-ready');
+    if (fallback) {
+      fallback.classList.add('is-hidden');
+      fallback.classList.remove('is-shown');
+    }
+  };
+
+  if (headerLogoEl.complete && headerLogoEl.naturalWidth > 0) {
+    markReady();
+    return;
+  }
+
+  slowLoadTimer = setTimeout(() => {
+    if (fallback && !headerLogoEl.classList.contains('is-ready')) {
+      fallback.classList.add('is-shown');
+    }
+  }, 300);
+
+  headerLogoEl.addEventListener('load', markReady, { once: true });
+}
+
+window.addEventListener('resize', renderGraphs);
+window.addEventListener('beforeunload', () => {
+    if (historyLoadController) {
+        historyLoadController.abort();
+    }
+});
+initHeaderLogo();
+refreshData();
+
+farmSelectorEl.addEventListener('change', () => {
+    const nextFarm = String(farmSelectorEl.value || '').trim() || currentAllServersFarmName;
+    if (!nextFarm || nextFarm.toLowerCase() === String(selectedFarm || '').toLowerCase()) {
+        return;
+    }
+
+    selectedFarm = nextFarm;
+    resetFarmViewState();
+
+    const url = new URL(window.location.href);
+    if (isAllServersFarm(selectedFarm)) {
+        url.searchParams.delete('farm');
+    } else {
+        url.searchParams.set('farm', selectedFarm);
+    }
+    if (debugMode) {
+        url.searchParams.set('debug', '1');
+    }
+    window.location.href = url.pathname + url.search;
+});
+</script>
+</body>
+</html>

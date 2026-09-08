@@ -1,0 +1,294 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>__DASHBOARD_TITLE__</title>
+  <style>
+    body { margin:0; background:#f4f7fb; font-family: Segoe UI, Tahoma, sans-serif; color:#122033; }
+    header { padding:14px 18px; background:#123a7a; color:#fff; display:flex; gap:12px; align-items:center; justify-content:space-between; }
+    header .logo-link { display:inline-flex; align-items:center; border-radius:8px; transition: transform 140ms ease, filter 140ms ease; }
+    header .logo-link:hover, header .logo-link:focus-visible { transform: scale(1.08) rotate(-2deg); filter: drop-shadow(0 0 8px rgba(255,255,255,0.55)); outline: 2px solid rgba(255,255,255,0.6); outline-offset:3px; }
+    .shell { padding:16px; }
+    .hero { display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-bottom:14px; }
+    .hero h1 { margin:0; color:#123a7a; font-size:1.5rem; }
+    .hero p { margin:4px 0 0; color:#516076; }
+    .back-link { display:inline-flex; align-items:center; gap:6px; color:#123a7a; background:#e7eef8; border-radius:10px; padding:8px 12px; text-decoration:none; font-weight:600; }
+    .status-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:16px; }
+    .status-card { background:#fff; border:1px solid #d7deea; border-radius:14px; padding:14px; box-shadow:0 4px 14px rgba(18,58,122,0.08); }
+    .status-card h2 { margin:0 0 10px; font-size:1rem; color:#123a7a; }
+    .status-pill { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; font-weight:700; font-size:12px; }
+    .status-good { background:#dcfce7; color:#166534; }
+    .status-warn { background:#fef3c7; color:#92400e; }
+    .status-bad { background:#fee2e2; color:#b91c1c; }
+    .kv { display:grid; grid-template-columns:140px 1fr; gap:8px; font-size:13px; }
+    .kv div { padding:4px 0; border-bottom:1px solid #edf2f7; }
+    .kv div:nth-last-child(-n+2) { border-bottom:0; }
+    .muted { color:#5f6f84; font-weight:600; }
+    .mono { font-family: Consolas, 'Courier New', monospace; word-break:break-word; }
+    .list { margin:0; padding-left:18px; }
+    .list li { margin:4px 0; }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+    .btn { border:0; border-radius:10px; background:#1558c0; color:#fff; padding:9px 14px; font-weight:700; cursor:pointer; }
+    .pre { background:#0f172a; color:#cbd5e1; border-radius:14px; padding:14px; font-family: Consolas, 'Courier New', monospace; font-size:12px; white-space:pre-wrap; overflow:auto; }
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display:flex;align-items:center;gap:10px;"><a href="/dashboard" class="logo-link" aria-label="Dashboard home"><img src="/logo.png" alt="Logo" style="height:36px;" /></a><strong>__DASHBOARD_TITLE__</strong></div>
+    <div>Signed in as __SAFE_USER__ | <a href="/logout" style="color:#fff;">Logout</a> | <a href="/help" style="color:#fff;">Help</a></div>
+  </header>
+  <div class="shell">
+    <div class="hero">
+      <div>
+        <h1>Service Health</h1>
+        <p>Runtime status for collector, templates, SQLite, and snapshot files.</p>
+      </div>
+      <a class="back-link" href="/dashboard">&larr; Back to dashboard</a>
+    </div>
+    <div class="actions">
+      <button class="btn" type="button" onclick="loadHealth()">Refresh status</button>
+      <button class="btn" type="button" onclick="restartCollector()">Restart collector</button>
+      <a class="back-link" href="/api/health" target="_blank" rel="noopener">Open raw JSON</a>
+    </div>
+    <div class="status-grid">
+      <section class="status-card">
+        <h2>Collector</h2>
+        <div id="collector-pill" class="status-pill status-warn">Loading</div>
+        <div id="collector-pool-pill" class="status-pill status-warn" style="margin-top:8px;">Pool: Loading</div>
+        <div class="kv" id="collector-kv"></div>
+      </section>
+      <section class="status-card">
+        <h2>Templates</h2>
+        <div id="templates-pill" class="status-pill status-warn">Loading</div>
+        <div class="kv" id="templates-kv"></div>
+        <ul class="list" id="templates-missing"></ul>
+      </section>
+      <section class="status-card">
+        <h2>SQLite</h2>
+        <div id="sqlite-pill" class="status-pill status-warn">Loading</div>
+        <div class="kv" id="sqlite-kv"></div>
+      </section>
+      <section class="status-card">
+        <h2>Snapshot</h2>
+        <div id="snapshot-pill" class="status-pill status-warn">Loading</div>
+        <div class="kv" id="snapshot-kv"></div>
+      </section>
+    </div>
+    <section class="status-card" style="margin-bottom:16px;">
+      <h2>Runtime Files</h2>
+      <div class="kv" id="runtime-kv"></div>
+    </section>
+    <section class="status-card">
+      <h2>Raw Payload</h2>
+      <div id="raw-payload" class="pre">Loading...</div>
+    </section>
+  </div>
+<script>
+const csrfToken = '__CSRF_TOKEN__';
+
+function pillClass(ok, warnOnly) {
+  if (ok) return 'status-pill status-good';
+  return warnOnly ? 'status-pill status-warn' : 'status-pill status-bad';
+}
+
+function setPill(id, text, ok, warnOnly) {
+  const el = document.getElementById(id);
+  el.className = pillClass(ok, warnOnly);
+  el.textContent = text;
+}
+
+function renderKv(id, pairs) {
+  const el = document.getElementById(id);
+  el.innerHTML = pairs.map(([k, v]) => `<div class="muted">${k}</div><div class="mono">${v ?? '-'}</div>`).join('');
+}
+
+function fmtBool(value) {
+  return value ? 'Yes' : 'No';
+}
+
+async function restartCollector() {
+  const proceed = window.confirm('Restart the collector background job?');
+  if (!proceed) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/health/restart-collector', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRF-Token': csrfToken
+      },
+      body: ''
+    });
+
+    if (res.status === 401) {
+      window.location.href = '/login';
+      return;
+    }
+
+    if (res.status === 403) {
+      throw new Error('CSRF validation failed. Reload the page and try again.');
+    }
+
+    const payload = await res.json().catch(() => null);
+    if (!res.ok || !payload || payload.Success === false) {
+      throw new Error(payload && payload.Message ? payload.Message : ('HTTP ' + res.status));
+    }
+
+    window.alert('Collector restarted successfully.');
+    await loadHealth();
+  } catch (error) {
+    window.alert('Collector restart failed: ' + (error && error.message ? error.message : error));
+  }
+}
+
+async function loadHealth() {
+  try {
+    const res = await fetch('/api/health', { cache: 'no-store' });
+    if (res.status === 401) {
+      window.location.href = '/login';
+      return;
+    }
+    if (!res.ok) {
+      throw new Error('HTTP ' + res.status);
+    }
+
+    const data = await res.json();
+    document.getElementById('raw-payload').textContent = JSON.stringify(data, null, 2);
+
+    const collector = data.Collector || {};
+    const snapshot = data.Snapshot || {};
+    const startFailed = (snapshot.StartFailedServersCount ?? 0);
+    const timedOut = (snapshot.TimedOutServersCount ?? 0);
+    const failed = (snapshot.FailedServersCount ?? 0);
+    const rawCollectorState = collector.State || 'Unknown';
+    const snapshotIsFresh = !!snapshot.SnapshotAvailable && !snapshot.SnapshotReadError && !snapshot.IsStale;
+    const externalHealthy = (rawCollectorState === 'NotStarted' || rawCollectorState === 'Stopped') && snapshotIsFresh;
+    const effectiveHealthState = externalHealthy ? 'Healthy' : (collector.HealthState || 'Unknown');
+    const collectorOk = effectiveHealthState === 'Healthy';
+    const collectorWarn = effectiveHealthState === 'Warning';
+    const collectorText = externalHealthy
+      ? 'Healthy (external collector)'
+      : (collector.StatusText || (effectiveHealthState === 'Healthy'
+        ? 'Healthy'
+        : (effectiveHealthState === 'Warning' ? 'Warning' : rawCollectorState)));
+    const restart = collector.Restart || {};
+    setPill('collector-pill', collectorText, collectorOk, collectorWarn);
+
+    // Collector pool badge: green=no issues, yellow=timeouts/start-failures only, red=hard failures.
+    let poolText = 'Pool: Healthy';
+    let poolOk = true;
+    let poolWarn = false;
+    if (failed > 0) {
+      poolText = `Pool: Critical (failed=${failed}, timeout=${timedOut}, startFail=${startFailed})`;
+      poolOk = false;
+      poolWarn = false;
+    } else if (timedOut > 0 || startFailed > 0) {
+      poolText = `Pool: Degraded (failed=${failed}, timeout=${timedOut}, startFail=${startFailed})`;
+      poolOk = false;
+      poolWarn = true;
+    }
+    setPill('collector-pool-pill', poolText, poolOk, poolWarn);
+
+    renderKv('collector-kv', [
+      ['Effective Health', effectiveHealthState],
+      ['Job ID', collector.Id ?? '-'],
+      ['Raw Job State', rawCollectorState],
+      ['Timeout', (collector.TimeoutSeconds ?? '-') + ' s'],
+      ['Cycle Delay', (collector.CycleDelaySeconds ?? '-') + ' s'],
+      ['Input Servers', snapshot.InputServersCount ?? 0],
+      ['Started Workers', snapshot.StartedWorkersCount ?? 0],
+      ['Start Failures', snapshot.StartFailedServersCount ?? 0],
+      ['Restart Cooldown', restart.CooldownSeconds == null ? '-' : (restart.CooldownSeconds + ' s')],
+      ['Cooldown Remaining', restart.CooldownRemainingSeconds == null ? '-' : (restart.CooldownRemainingSeconds + ' s')],
+      ['Restart Requests 1h', restart.RequestsLastHour ?? 0],
+      ['Restart Successes', restart.TotalSuccesses ?? 0],
+      ['Restart Failures', restart.TotalFailures ?? 0],
+      ['Cooldown Blocked', restart.CooldownBlocked ?? 0],
+      ['Restart Warning', restart.WarningReason || '-'],
+      ['Last Restart Outcome', restart.LastOutcome || '-'],
+      ['Last Restart Actor', restart.LastActor || '-'],
+      ['Last Restart Attempt', restart.LastAttemptUtc || '-'],
+      ['Last Cycle', snapshot.CycleDurationSeconds == null ? '-' : (snapshot.CycleDurationSeconds + ' s')],
+      ['Timed Out Servers', timedOut],
+      ['Failed Servers', failed],
+      ['Snapshot Age', snapshot.AgeSeconds == null ? '-' : (snapshot.AgeSeconds + ' s')],
+      ['Stale Threshold', snapshot.StaleThresholdSeconds == null ? '-' : (snapshot.StaleThresholdSeconds + ' s')]
+    ]);
+
+    const templates = data.Templates || {};
+    const missing = Array.isArray(templates.Missing) ? templates.Missing : [];
+    setPill('templates-pill', templates.AllPresent ? 'All templates found' : 'Missing templates', !!templates.AllPresent, false);
+    renderKv('templates-kv', [
+      ['Template Dir', templates.TemplateDir ?? '-'],
+      ['Missing Count', missing.length]
+    ]);
+    document.getElementById('templates-missing').innerHTML = missing.length ? missing.map(name => `<li class="mono">${name}</li>`).join('') : '<li>None</li>';
+
+    const sqlite = data.Sqlite || {};
+    const sqliteOk = !!sqlite.Enabled && !!sqlite.DatabaseExists;
+    setPill('sqlite-pill', sqliteOk ? 'Enabled' : (sqlite.Enabled ? 'DB missing' : 'Disabled'), sqliteOk, !sqlite.Enabled);
+    renderKv('sqlite-kv', [
+      ['Enabled', fmtBool(sqlite.Enabled)],
+      ['Database Exists', fmtBool(sqlite.DatabaseExists)],
+      ['Executable', sqlite.Executable ?? '-'],
+      ['Database Path', sqlite.DatabasePath ?? '-']
+    ]);
+
+    const serversWithoutAnyData = (snapshot.ServersWithoutAnyData ?? 0);
+    const anyCoverage = (snapshot.AnyDataCoveragePercent ?? 0);
+    const hasCollectorDegradation = (
+      startFailed > 0 ||
+      timedOut > 0 ||
+      failed > 0 ||
+      serversWithoutAnyData > 0
+    );
+    const snapshotOk = !!snapshot.SnapshotAvailable && !snapshot.SnapshotReadError && !snapshot.IsStale && !hasCollectorDegradation;
+    const snapshotWarn = !!snapshot.SnapshotAvailable && !snapshot.SnapshotReadError && (!!snapshot.IsStale || hasCollectorDegradation);
+    const snapshotText = !snapshot.SnapshotAvailable
+      ? 'Unavailable'
+      : (snapshot.SnapshotReadError ? 'Read error' : (snapshot.IsStale ? 'Stale' : (hasCollectorDegradation ? 'Fresh (degraded data)' : 'Fresh')));
+    setPill('snapshot-pill', snapshotText, snapshotOk, snapshotWarn);
+    renderKv('snapshot-kv', [
+      ['Snapshot Available', fmtBool(snapshot.SnapshotAvailable)],
+      ['Snapshot Source', snapshot.SnapshotSource || '-'],
+      ['Generated At', snapshot.GeneratedAtUtc || '-'],
+      ['Age', snapshot.AgeSeconds == null ? '-' : (snapshot.AgeSeconds + ' s')],
+      ['Stale Threshold', snapshot.StaleThresholdSeconds == null ? '-' : (snapshot.StaleThresholdSeconds + ' s')],
+      ['Max Concurrent Jobs', snapshot.MaxConcurrentJobs == null ? '-' : snapshot.MaxConcurrentJobs],
+      ['Input Servers', snapshot.InputServersCount ?? 0],
+      ['Started Workers', snapshot.StartedWorkersCount ?? 0],
+      ['Start Failures', snapshot.StartFailedServersCount ?? 0],
+      ['Servers', snapshot.ServersCount ?? 0],
+      ['Sessions', snapshot.SessionsCount ?? 0],
+      ['Servers w/ CPU', snapshot.ServersWithCpuData ?? 0],
+      ['Servers w/ RAM', snapshot.ServersWithRamData ?? 0],
+      ['Servers w/ Session Rows', snapshot.ServersWithSessionRows ?? 0],
+      ['Servers w/ Any Data', snapshot.ServersWithAnyMetricData ?? 0],
+      ['Servers w/o Any Data', serversWithoutAnyData],
+      ['Any Data Coverage', (anyCoverage + ' %')],
+      ['Last Restart Failure', restart.LastFailureMessage || '-'],
+      ['Read Error', snapshot.SnapshotReadError || '-']
+    ]);
+
+    const files = data.RuntimeFiles || {};
+    renderKv('runtime-kv', [
+      ['History Cache', `${files.HistoryCacheExists ? 'OK' : 'Missing'} | ${files.HistoryCachePath || '-'}`],
+      ['Audit Log', `${files.AuditLogExists ? 'OK' : 'Missing'} | ${files.AuditLogPath || '-'}`],
+      ['Server Log', `${files.ServerLogExists ? 'OK' : 'Missing'} | ${files.ServerLogPath || '-'}`]
+    ]);
+  } catch (error) {
+    setPill('collector-pill', 'Load failed', false, false);
+    setPill('templates-pill', 'Load failed', false, false);
+    setPill('sqlite-pill', 'Load failed', false, false);
+    setPill('snapshot-pill', 'Load failed', false, false);
+    document.getElementById('raw-payload').textContent = 'Failed to load /api/health: ' + (error && error.message ? error.message : error);
+  }
+}
+
+loadHealth();
+</script>
+</body>
+</html>

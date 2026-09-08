@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>__DASHBOARD_TITLE__ - Logs</title>
+    <style>
+        body { margin:0; background:#f4f7fb; font-family: Segoe UI, Tahoma, sans-serif; }
+        header { padding:14px 18px; background:#123a7a; color:#fff; display:flex; align-items:center; justify-content:space-between; }
+        .shell { padding:14px; }
+        .btn { display:inline-block; text-decoration:none; background:#e0e7f0; color:#123a7a; border-radius:6px; padding:8px 10px; font-weight:600; }
+        table { width:100%; border-collapse:collapse; background:#fff; margin-top:12px; }
+        th, td { border:1px solid #d7deea; padding:6px; text-align:left; font-size:13px; }
+        th { background:#223a64; color:#fff; position:sticky; top:0; }
+        .meta { color:#4d5e7d; margin-top:10px; }
+        a { color:#fff; }
+    </style>
+</head>
+<body>
+    <header>
+        <div><strong>__DASHBOARD_TITLE__ - Logs</strong></div>
+        <div>Signed in as __SAFE_USER__ | <a href="/logout">Logout</a> | <a href="/help">Help</a></div>
+    </header>
+    <div class="shell">
+        <a class="btn" href="/dashboard">&larr; Back to the dashboard</a>
+        <div class="meta">Source file: __AUDIT_LOG_FILE__</div>
+        <table>
+            <thead>
+                <tr><th>Timestamp</th><th>Event</th><th>Actor</th><th>Server</th><th>SessionId</th><th>Username</th><th>Session</th><th>State</th><th>Details</th></tr>
+            </thead>
+            <tbody>
+                __LOG_ROWS__
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

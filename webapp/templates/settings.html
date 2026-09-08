@@ -1,0 +1,170 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Settings - __DASHBOARD_TITLE__</title>
+  <style>
+    body { margin:0; background:#f3f6fb; font-family: Segoe UI, Tahoma, sans-serif; color:#17253b; }
+    header { padding:6px 18px; background:#123a7a; color:#fff; display:flex; gap:12px; align-items:center; justify-content:space-between; }
+    header .left { display:flex; align-items:center; gap:10px; }
+    header .nav { display:flex; align-items:center; gap:10px; }
+    header a { color:#fff; }
+    .logo-mark { position:relative; width:96px; height:64px; display:inline-flex; align-items:center; justify-content:flex-start; overflow:hidden; }
+    .logo-fallback { position:absolute; inset:0; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background:rgba(255,255,255,0.2); color:#fff; font-size:28px; font-weight:700; letter-spacing:0.4px; opacity:0; transition:opacity 120ms ease; }
+    .logo-image { position:relative; width:96px; height:96px; display:block; opacity:0; transition:opacity 120ms ease; object-fit:contain; }
+    .logo-image.is-ready { opacity:1; }
+    .logo-fallback.is-shown { opacity:1; }
+    .logo-fallback.is-hidden { opacity:0; pointer-events:none; }
+    .nav-btn { text-decoration:none; background:rgba(255,255,255,0.16); padding:6px 10px; border-radius:7px; font-weight:600; }
+    .nav-btn:hover, .nav-btn:focus-visible { background:rgba(255,255,255,0.3); outline:2px solid rgba(255,255,255,0.5); outline-offset:2px; }
+    .shell { padding:14px; max-width:1280px; margin:0 auto; }
+    .panel { background:#fff; border:1px solid #dbe5f4; border-radius:12px; box-shadow:0 2px 8px rgba(17,41,84,0.08); padding:14px; margin-bottom:14px; }
+    .panel h2 { margin:0 0 10px; font-size:18px; color:#0f2f63; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+    .btn { border:0; border-radius:8px; padding:8px 12px; cursor:pointer; font-weight:600; text-decoration:none; display:inline-block; }
+    .btn-primary { background:#1558c0; color:#fff; }
+    .btn-secondary { background:#e5ecf7; color:#123a7a; }
+    .flash-banner { border-radius:10px; padding:10px 12px; background:#fff4ce; border:1px solid #ffb900; color:#5c4400; font-weight:600; margin-bottom:12px; }
+    .status { min-height:20px; font-weight:600; color:#2f3f58; }
+    .status.error { color:#a4262c; }
+    .muted { color:#5f6b80; font-size:12px; }
+    .config-wrap { border:1px solid #d7deea; border-radius:10px; background:#0f1a2e; overflow:auto; }
+    pre { margin:0; padding:14px; color:#dbe7ff; font-size:13px; line-height:1.4; white-space:pre; min-height:280px; }
+    @media (max-width: 760px) {
+      .row { align-items:stretch; }
+      .btn { width:100%; text-align:center; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="left"><a href="/dashboard" aria-label="Dashboard home"><span class="logo-mark"><span class="logo-fallback is-hidden" aria-hidden="true">NB</span><img id="header-logo" class="logo-image" src="/logo.png" alt="Logo" width="96" height="96" /></span></a><strong>Settings - __DASHBOARD_TITLE__</strong></div>
+    <div class="nav"><a class="nav-btn" href="/dashboard">Back to dashboard</a><span>Signed in as __SAFE_USER__ | <a href="/logout">Logout</a> | <a href="/help">Help</a></span></div>
+  </header>
+
+  <div class="shell">
+    <div id="flash-banner" class="flash-banner" style="display:none;">__FLASH_MESSAGE__</div>
+
+    <div class="panel">
+      <h2>Current config.toml</h2>
+      <div class="row">
+        <a id="refresh-btn" class="btn btn-secondary" href="#">Refresh</a>
+        <span class="muted">Config file: <strong id="config-path"></strong></span>
+      </div>
+      <div id="status" class="status" aria-live="polite"></div>
+      <div class="config-wrap">
+        <pre id="config-content"></pre>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+const statusEl = document.getElementById('status');
+const flashBannerEl = document.getElementById('flash-banner');
+const configContentEl = document.getElementById('config-content');
+const configPathEl = document.getElementById('config-path');
+const refreshBtnEl = document.getElementById('refresh-btn');
+const headerLogoEl = document.getElementById('header-logo');
+
+function setStatus(message, isError) {
+  statusEl.textContent = message || '';
+  statusEl.className = 'status';
+  if (isError) {
+    statusEl.classList.add('error');
+  }
+}
+
+function initFlashBanner() {
+  const text = (flashBannerEl.textContent || '').trim();
+  flashBannerEl.style.display = text ? 'block' : 'none';
+}
+
+async function loadSettings() {
+  let res;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    res = await fetch('/api/settings', { cache: 'no-store', signal: controller.signal });
+    clearTimeout(timeout);
+  } catch (err) {
+    setStatus('Failed to contact server: ' + err, true);
+    return;
+  }
+  if (res.status === 401) {
+    window.location.href = '/login';
+    return;
+  }
+  if (res.status === 403) {
+    window.location.href = '/dashboard?msg=' + encodeURIComponent('Access denied. Settings require local Administrators membership.');
+    return;
+  }
+
+  let payload;
+  try {
+    payload = await res.json();
+  } catch (err) {
+    setStatus('Invalid response from server', true);
+    return;
+  }
+  const configText = String(payload.ConfigText || '');
+  const configPath = String(payload.ConfigPath || '');
+  const configReadError = String(payload.ConfigReadError || '');
+
+  configContentEl.textContent = configText;
+  configPathEl.textContent = configPath;
+
+  if (configReadError) {
+    setStatus('Unable to read config file: ' + configReadError, true);
+  } else if (!configText) {
+    setStatus('Config file is empty.', false);
+  } else {
+    setStatus('', false);
+  }
+}
+
+refreshBtnEl.addEventListener('click', (ev) => {
+  ev.preventDefault();
+  loadSettings();
+});
+
+function initHeaderLogo() {
+  if (!headerLogoEl) {
+    return;
+  }
+
+  const fallback = headerLogoEl.parentElement?.querySelector('.logo-fallback');
+  let slowLoadTimer = null;
+
+  const markReady = () => {
+    if (slowLoadTimer) {
+      clearTimeout(slowLoadTimer);
+    }
+    headerLogoEl.classList.add('is-ready');
+    if (fallback) {
+      fallback.classList.add('is-hidden');
+      fallback.classList.remove('is-shown');
+    }
+  };
+
+  if (headerLogoEl.complete && headerLogoEl.naturalWidth > 0) {
+    markReady();
+    return;
+  }
+
+  slowLoadTimer = setTimeout(() => {
+    if (fallback && !headerLogoEl.classList.contains('is-ready')) {
+      fallback.classList.add('is-shown');
+    }
+  }, 300);
+
+  headerLogoEl.addEventListener('load', markReady, { once: true });
+}
+
+initFlashBanner();
+initHeaderLogo();
+loadSettings();
+  </script>
+</body>
+</html>

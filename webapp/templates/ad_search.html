@@ -1,0 +1,323 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>__DASHBOARD_TITLE__ - AD User Search</title>
+  <style>
+    body { margin:0; background:#f4f7fb; font-family: Segoe UI, Tahoma, sans-serif; }
+    header { padding:14px 18px; background:#123a7a; color:#fff; display:flex; gap:12px; align-items:center; justify-content:space-between; }
+    header .logo-link { display:inline-flex; align-items:center; border-radius:8px; transition: transform 140ms ease, filter 140ms ease, box-shadow 140ms ease; }
+    header .logo-link:hover, header .logo-link:focus-visible { transform: scale(1.1) rotate(-2deg); filter: drop-shadow(0 0 8px rgba(255,255,255,0.55)); outline: 2px solid rgba(255,255,255,0.6); outline-offset:3px; }
+    .shell { padding:14px; }
+    .search-form { background:#fff; border:1px solid #d1d5db; border-radius:10px; padding:20px; margin-bottom:20px; box-shadow:0 2px 6px rgba(0,0,0,0.08); }
+    .search-form input { width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; font-family: inherit; box-sizing:border-box; }
+    .search-form button { background:#1558c0; color:#fff; border:0; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:600; font-size:14px; margin-top:10px; }
+    .search-form button:hover { background:#0d3f8f; }
+    .results { background:#fff; border:1px solid #d1d5db; border-radius:10px; padding:20px; }
+    .result-item { padding:10px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:flex-start; align-items:center; gap:12px; }
+    .result-item:last-child { border-bottom:0; }
+    .result-content { min-width:220px; }
+    .result-top { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .result-name { font-weight:600; color:#123a7a; }
+    .result-sam { color:#666; font-size:12px; margin-top:4px; font-family:monospace; }
+    .result-meta { color:#374151; font-size:12px; margin-top:4px; }
+    .result-actions { display:flex; gap:8px; }
+    .copy-btn { background:#1558c0; color:#fff; border:0; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; display:flex; align-items:center; gap:6px; transition: background 140ms ease; }
+    .copy-btn:hover { background:#0d3f8f; }
+    .copy-btn:active { background:#0a2d6d; }
+    .group-btn { background:#0f766e; color:#fff; border:0; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; transition: background 140ms ease; }
+    .group-btn:hover { background:#0c5f59; }
+    .group-btn:active { background:#084743; }
+    .copy-icon { width:16px; height:16px; }
+    .state-badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; }
+    .state-enabled { background:#dcfce7; color:#166534; }
+    .state-disabled { background:#fee2e2; color:#991b1b; }
+    .state-unknown { background:#e5e7eb; color:#374151; }
+    .meta-risk { color:#b91c1c; font-weight:700; }
+    .error { background:#fee; color:#c00; padding:10px 12px; border-radius:8px; margin-top:10px; }
+    .message { background:#efe; color:#060; padding:10px 12px; border-radius:8px; margin-top:10px; }
+    .btn-back { background:#e0e7f0; border:0; border-radius:8px; padding:8px 14px; cursor:pointer; font-weight:600; color:#123a7a; margin-bottom:12px; }
+    .farm-nav { margin-bottom:4px; }
+    .farm-nav .btn-back { margin-bottom:0; }
+    .groups-modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.45); display:none; align-items:center; justify-content:center; z-index:1000; }
+    .groups-modal { background:#fff; border-radius:12px; width:min(900px, calc(100vw - 30px)); max-height:calc(100vh - 40px); overflow:auto; padding:16px; box-shadow:0 12px 30px rgba(0,0,0,0.25); }
+    .groups-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
+    .groups-close { background:#e5e7eb; border:0; border-radius:8px; padding:6px 10px; cursor:pointer; font-weight:600; }
+    .groups-columns { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .groups-box { border:1px solid #d1d5db; border-radius:8px; padding:10px; background:#f9fafb; }
+    .groups-box h4 { margin:0 0 8px 0; color:#123a7a; }
+    .groups-box ul { margin:0; padding-left:18px; }
+    .groups-box li { margin:3px 0; font-size:13px; }
+    @media (max-width: 780px) {
+      .groups-columns { grid-template-columns:1fr; }
+      .result-item { flex-direction:column; align-items:flex-start; }
+    }
+    a { color:#1558c0; text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    h2 { margin-top:0; color:#123a7a; }
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <a href="/dashboard" class="logo-link" aria-label="Back to the dashboard">
+        <img src="/logo.png" alt="Logo" style="height:36px;" />
+      </a>
+      <strong>__DASHBOARD_TITLE__ - AD User Search</strong>
+    </div>
+    <div>Signed in as __SAFE_USER__ | <a href="/logout">Logout</a> | <a href="/help">Help</a></div>
+  </header>
+  <div class="shell">
+    <button class="btn-back" onclick="window.location.href='/dashboard'">&larr; Back to the dashboard</button>
+    <div class="search-form">
+      <h2>Search Active Directory Users in __AD_DOMAIN__ domain</h2>
+      <label style="display:block;margin-bottom:8px;font-weight:600;">Search by Full Name or Display Name:</label>
+      <input type="text" id="search-input" placeholder="Enter full name, display name, or part of either..." />
+      <button onclick="performSearch()">Search</button>
+      <div id="message" style="display:none;"></div>
+    </div>
+    <div id="results-container" style="display:none;">
+      <h3 style="color:#123a7a;">Search Results:</h3>
+      <div id="results" class="results"></div>
+    </div>
+  </div>
+
+  <div id="groups-modal-backdrop" class="groups-modal-backdrop" onclick="closeGroupsModal(event)">
+    <div class="groups-modal" role="dialog" aria-modal="true" aria-labelledby="groups-title">
+      <div class="groups-head">
+        <h3 id="groups-title" style="margin:0;color:#123a7a;">User group membership</h3>
+        <button class="groups-close" onclick="closeGroupsModal()">Close</button>
+      </div>
+      <div id="groups-summary" style="margin-bottom:10px;color:#334155;"></div>
+      <div id="groups-warning" class="error" style="display:none;"></div>
+      <div class="groups-columns">
+        <div class="groups-box">
+          <h4>Direct groups</h4>
+          <ul id="direct-groups-list"></ul>
+        </div>
+        <div class="groups-box">
+          <h4>Direct + indirect groups</h4>
+          <ul id="all-groups-list"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+function escapeHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function escapeJsSingleQuoted(value) {
+    return String(value == null ? '' : value)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'");
+}
+
+function getStateBadgeClass(stateText) {
+    const normalized = (stateText || '').toLowerCase();
+    if (normalized === 'enabled') {
+        return 'state-badge state-enabled';
+    }
+    if (normalized === 'disabled') {
+        return 'state-badge state-disabled';
+    }
+    return 'state-badge state-unknown';
+}
+
+function performSearch() {
+    const query = document.getElementById('search-input').value.trim();
+    const messageDiv = document.getElementById('message');
+    const resultsContainer = document.getElementById('results-container');
+    const resultsDiv = document.getElementById('results');
+    
+    if (!query) {
+        messageDiv.style.display = 'block';
+        messageDiv.className = 'error';
+        messageDiv.textContent = 'Please enter a search term.';
+        resultsContainer.style.display = 'none';
+        return;
+    }
+    
+    messageDiv.style.display = 'block';
+    messageDiv.className = 'message';
+    messageDiv.textContent = 'Searching...';
+    resultsContainer.style.display = 'none';
+    
+    fetch('/api/ad-search?query=' + encodeURIComponent(query), { cache: 'no-store' })
+        .then(res => {
+            if (res.status === 401) {
+                window.location.href = '/login';
+                return Promise.reject(new Error('Unauthorized'));
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (!data.success) {
+                messageDiv.style.display = 'block';
+                messageDiv.className = 'error';
+                messageDiv.textContent = 'Error: ' + (data.error || 'Unknown error');
+                resultsContainer.style.display = 'none';
+                return;
+            }
+            
+            if (!data.results || data.results.length === 0) {
+                messageDiv.style.display = 'block';
+                messageDiv.className = 'message';
+                messageDiv.textContent = 'No users found matching your search.';
+                resultsContainer.style.display = 'none';
+                return;
+            }
+            
+            resultsDiv.innerHTML = '';
+            data.results.forEach(user => {
+                const item = document.createElement('div');
+                item.className = 'result-item';
+                const copyIcon = '<svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>';
+              const fullName = escapeHtml(user.FullName || user.DisplayName || 'N/A');
+              const sam = String(user.SamAccountName || '').trim();
+              const safeSam = escapeHtml(sam || 'N/A');
+              const escapedSamJs = escapeJsSingleQuoted(sam);
+                const accountStateRaw = String(user.AccountState || 'Unknown');
+                const mustChangeRaw = String(user.MustChangePasswordAtNextLogon || 'Unknown');
+                const pwdChangedRaw = String(user.PasswordLastChangedRome || 'N/A');
+                const accountState = escapeHtml(accountStateRaw);
+                const mustChangeAtNextLogon = escapeHtml(mustChangeRaw);
+                const pwdChanged = escapeHtml(pwdChangedRaw);
+                const accountExpires = escapeHtml(user.AccountExpiresRome || 'N/A');
+                const mustChangeClass = mustChangeRaw.toLowerCase() === 'yes' ? 'result-meta meta-risk' : 'result-meta';
+                const pwdChangedClass = pwdChangedRaw.toLowerCase() === 'never' ? 'result-meta meta-risk' : 'result-meta';
+              const stateClass = getStateBadgeClass(accountStateRaw);
+              item.innerHTML = '<div class="result-content"><div class="result-top"><div class="result-name">' + fullName + '</div>' +
+                      '<div class="result-actions"><button class="copy-btn" onclick="copyToClipboard(\'' + escapedSamJs + '\');">' + copyIcon + 'Copy Username</button><button class="group-btn" onclick="showAllGroups(\'' + escapedSamJs + '\')">Show all its groups</button></div></div>' +
+                      '<div class="result-sam">Account: ' + safeSam + '</div>' +
+                      '<div class="result-meta">State: <span class="' + stateClass + '">' + accountState + '</span></div>' +
+                      '<div class="' + mustChangeClass + '">User must change password at next logon: ' + mustChangeAtNextLogon + '</div>' +
+                    '<div class="' + pwdChangedClass + '">Last password change (Rome time): ' + pwdChanged + '</div>' +
+                    '<div class="result-meta">Account expires (Rome time): ' + accountExpires + '</div></div>';
+                resultsDiv.appendChild(item);
+            });
+            messageDiv.style.display = 'none';
+            resultsContainer.style.display = 'block';
+        })
+        .catch(err => {
+            console.error('Search error:', err);
+            messageDiv.style.display = 'block';
+            messageDiv.className = 'error';
+            messageDiv.textContent = 'Search failed: ' + (err && err.message ? err.message : 'Unknown error');
+            resultsContainer.style.display = 'none';
+        });
+}
+
+document.getElementById('search-input').addEventListener('keypress', e => {
+    if (e.key === 'Enter') {
+        performSearch();
+    }
+});
+
+(function () {
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('q');
+    if (q) {
+        document.getElementById('search-input').value = q;
+        performSearch();
+    }
+})();
+
+function fillGroupList(listElementId, groups) {
+  const list = document.getElementById(listElementId);
+  list.innerHTML = '';
+
+  const items = Array.isArray(groups) ? groups : [];
+  if (items.length === 0) {
+    const li = document.createElement('li');
+    li.textContent = '(none)';
+    list.appendChild(li);
+    return;
+  }
+
+  items.forEach(groupName => {
+    const li = document.createElement('li');
+    li.textContent = groupName;
+    list.appendChild(li);
+  });
+}
+
+function showAllGroups(samAccountName) {
+  const sam = String(samAccountName || '').trim();
+  if (!sam) {
+    alert('Missing username.');
+    return;
+  }
+
+  fetch('/api/ad-user-groups?sam=' + encodeURIComponent(sam), { cache: 'no-store' })
+    .then(res => {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        return Promise.reject(new Error('Unauthorized'));
+      }
+      return res.json();
+    })
+    .then(data => {
+      if (!data.success) {
+        alert('Failed to load groups: ' + (data.error || 'Unknown error'));
+        return;
+      }
+
+      const summary = document.getElementById('groups-summary');
+      summary.textContent = 'User: ' + (data.samAccountName || sam) + ' | Direct groups: ' + (data.directCount || 0) + ' | All groups: ' + (data.allCount || 0);
+
+      const warning = document.getElementById('groups-warning');
+      if (data.warning) {
+        warning.style.display = 'block';
+        warning.textContent = 'Warning: ' + data.warning;
+      } else {
+        warning.style.display = 'none';
+        warning.textContent = '';
+      }
+
+      fillGroupList('direct-groups-list', data.directGroups);
+      fillGroupList('all-groups-list', data.allGroups);
+      document.getElementById('groups-modal-backdrop').style.display = 'flex';
+    })
+    .catch(err => {
+      console.error('Group lookup failed:', err);
+      alert('Failed to load groups.');
+    });
+}
+
+function closeGroupsModal(event) {
+  if (event && event.target && event.target.id !== 'groups-modal-backdrop') {
+    return;
+  }
+  document.getElementById('groups-modal-backdrop').style.display = 'none';
+}
+
+function copyToClipboard(text) {
+    if (!navigator.clipboard) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('Copied: ' + text);
+        return;
+    }
+    
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Copied: ' + text);
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+        alert('Failed to copy to clipboard');
+    });
+}
+  </script>
+</body>
+</html>

@@ -1,0 +1,909 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>__DASHBOARD_TITLE__</title>
+  <style>
+    body { margin:0; background:#f4f7fb; font-family: Segoe UI, Tahoma, sans-serif; }
+    header { padding:14px 18px; background:#123a7a; color:#fff; display:flex; gap:12px; align-items:center; justify-content:space-between; }
+    header .logo-link { display:inline-flex; align-items:center; border-radius:8px; transition: transform 140ms ease, filter 140ms ease, box-shadow 140ms ease; }
+    header .logo-link:hover, header .logo-link:focus-visible { transform: scale(1.1) rotate(-2deg); filter: drop-shadow(0 0 8px rgba(255,255,255,0.55)); box-shadow: none; outline: 2px solid rgba(255,255,255,0.6); outline-offset:3px; }
+        header .title-wrap { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .shell { padding:14px; }
+    .stats { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
+    .stat { background:#edfaf1; border:1px solid #2e9e5b; border-radius:10px; padding:10px 12px; box-shadow:0 2px 6px rgba(22,101,52,0.18); min-width:110px; }
+    .bar { height:7px; background:#e4e6eb; border-radius:8px; overflow:hidden; margin:3px 0 8px; }
+    .fill { height:100%; }
+    table { width:100%; border-collapse:collapse; background:#fff; }
+    th, td { border:1px solid #d7deea; padding:6px; text-align:left; font-size:13px; }
+    th { background:#223a64; color:#fff; }
+    th.sortable { cursor:pointer; user-select:none; }
+    .sort-indicator { margin-left:4px; font-size:11px; opacity:0.9; }
+    .actions { display:flex; gap:6px; }
+    button { border:0; border-radius:6px; padding:6px 8px; cursor:pointer; }
+    .btn-disc { background:#ffd66e; }
+    .btn-logoff { background:#ff9a9a; }
+    .btn-msg { background:#8fc3ff; }
+    .btn-back { display:inline-block; background:#e0e7f0; color:#123a7a; font-weight:600; border:0; border-radius:6px; padding:6px 8px; cursor:pointer; text-decoration:none; }
+        .server-focus-row { margin:0 0 12px; display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+        .server-focus { margin:0; font-size:30px; font-weight:700; color:#123a7a; line-height:1.1; }
+    .btn-rdp { background:#1f8a47; color:#fff; }
+    .graphs { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:12px; margin:0 0 12px; }
+    .graph-card { background:#0c1d33; border-radius:12px; padding:12px; min-width:280px; }
+    .graph-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; color:#fff; font-size:13px; font-weight:600; }
+    .graph-value { font-size:15px; color:#48d9ff; }
+    .graph-value.sessions { color:#fbbf24; }
+    .tm-canvas { width:100%; height:140px; display:block; border-radius:8px; background:#0c1d33; }
+    .graph-axis { display:flex; justify-content:space-between; margin-top:6px; font-size:11px; color:#8da4c6; }
+    .section-title { margin:10px 0 8px; color:#123a7a; font-weight:700; }
+        .host-stats .stat { min-width:180px; }
+        .host-stats .stat-wide { min-width:320px; flex:1 1 320px; }
+    .muted { color:#7c2d12; font-size:12px; font-weight:600; }
+    a { color:#fff; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title-wrap">
+            <a id="header-dashboard-link" href="/dashboard" class="logo-link" aria-label="Back to the dashboard">
+                <img src="/logo.png" alt="Logo" style="height:36px;" />
+            </a>
+            <strong>__DASHBOARD_TITLE__</strong>
+    </div>
+        <div>Signed in as __SAFE_USER__ | <a href="/logout">Logout</a> | <a href="/help">Help</a></div>
+  </header>
+  <div class="shell">
+        <div style="margin-bottom:12px;">
+            <a id="back-dashboard-link" class="btn-back" href="/dashboard">&larr; Back to the dashboard</a>
+        </div>
+        <div class="server-focus-row">
+            <div id="server-focus" class="server-focus">Server</div>
+            <a id="rdp-logins-link" class="btn-back btn-rdp" href="#">Check last RDP logins</a>
+        </div>
+        <div class="stats host-stats">
+            <div class="stat stat-wide"><div class="muted">OS</div><div id="srv-os">-</div></div>
+            <div class="stat"><div class="muted">Type</div><div id="srv-type">-</div></div>
+            <div class="stat"><div class="muted">Total RAM (GB)</div><div id="srv-ramgb">-</div></div>
+            <div class="stat"><div class="muted">Cores</div><div id="srv-cores">-</div></div>
+            <div class="stat stat-wide"><div class="muted">IP(s)</div><div id="srv-ips">-</div></div>
+        </div>
+    <div class="stats">
+      <div class="stat"><div class="muted">Sessions</div><div id="s-total">0</div></div>
+      <div class="stat"><div class="muted">Active</div><div id="s-active">0</div></div>
+      <div class="stat"><div class="muted">Disconnected</div><div id="s-disc">0</div></div>
+      <div class="stat"><div class="muted">CPU</div><div id="s-cpu">-</div></div>
+      <div class="stat"><div class="muted">RAM</div><div id="s-ram">-</div></div>
+      <div class="stat"><div class="muted">Last Update (Rome time)</div><div id="s-ts">-</div></div>
+    </div>
+        <div class="section-title">Last hour data</div>
+        <div class="graphs">
+            <div class="graph-card">
+                <div class="graph-head"><span>CPU</span><span id="cpu-now" class="graph-value">-</span></div>
+                <canvas id="cpu-graph" class="tm-canvas"></canvas>
+                <div class="graph-axis"><span id="cpu-x-left">-</span><span id="cpu-x-right">-</span></div>
+            </div>
+            <div class="graph-card">
+                <div class="graph-head"><span>Memory</span><span id="ram-now" class="graph-value" style="color:#8bff75;">-</span></div>
+                <canvas id="ram-graph" class="tm-canvas"></canvas>
+                <div class="graph-axis"><span id="ram-x-left">-</span><span id="ram-x-right">-</span></div>
+            </div>
+            <div class="graph-card">
+                <div class="graph-head"><span>Sessions</span><span id="sessions-now" class="graph-value sessions">-</span></div>
+                <canvas id="sessions-graph" class="tm-canvas"></canvas>
+                <div class="graph-axis"><span id="sessions-x-left">-</span><span id="sessions-x-right">-</span></div>
+            </div>
+        </div>
+    <table>
+      <thead>
+        <tr>
+          <th class="sortable" data-sort-key="Username">User <span class="sort-indicator">&harr;</span></th>
+          <th class="sortable" data-sort-key="SessionName">Session <span class="sort-indicator">&harr;</span></th>
+                    <th class="sortable" data-sort-key="SessionCPU">CPU <span class="sort-indicator">&harr;</span></th>
+                    <th class="sortable" data-sort-key="SessionRAMMB">RAM (GB) <span class="sort-indicator">&harr;</span></th>
+          <th class="sortable" data-sort-key="ID">ID <span class="sort-indicator">&harr;</span></th>
+          <th class="sortable" data-sort-key="State">State <span class="sort-indicator">&harr;</span></th>
+          <th class="sortable" data-sort-key="IdleTime">Idle <span class="sort-indicator">&harr;</span></th>
+          <th class="sortable" data-sort-key="LogonTime">Logon <span class="sort-indicator">&harr;</span></th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+        <pre id="server-debug" style="display:none;white-space:pre-wrap;background:#0f172a;color:#a7f3d0;padding:10px;border-radius:8px;font-size:12px;margin-top:10px;"></pre>
+  </div>
+<script>
+const csrfToken = '__CSRF_TOKEN__';
+const queryParams = new URLSearchParams(location.search);
+const serverName = queryParams.get('name') || '';
+const serverNameLower = String(serverName || '').trim().toLowerCase();
+const serverNameShortLower = serverNameLower.split('.')[0];
+const debugMode = queryParams.get('debug') === '1';
+let selectedFarm = queryParams.get('farm') || '';
+document.title = '__DASHBOARD_TITLE__';
+const serverFocusEl = document.getElementById('server-focus');
+if (serverFocusEl) serverFocusEl.textContent = serverName || 'Unknown server';
+const rdpLoginsLinkEl = document.getElementById('rdp-logins-link');
+if (rdpLoginsLinkEl) {
+    rdpLoginsLinkEl.href = '/server-rdp-logins?name=' + encodeURIComponent(serverName || '');
+}
+
+const rowsEl = document.getElementById('rows');
+const sortableHeaders = Array.from(document.querySelectorAll('th[data-sort-key]'));
+const backDashboardLinkEl = document.getElementById('back-dashboard-link');
+const headerDashboardLinkEl = document.getElementById('header-dashboard-link');
+const cpuCanvas = document.getElementById('cpu-graph');
+const ramCanvas = document.getElementById('ram-graph');
+const sessionsCanvas = document.getElementById('sessions-graph');
+const cpuHistory = [];
+const ramHistory = [];
+const sessionsHistory = [];
+const tsHistory = [];
+const sessionsTsHistory = [];
+const historyMax = 360;
+let liveSessionMetrics = {};
+let snapshot = null;
+let historySeeded = false;
+let serverHistoryLoaded = false;
+let serverHistoryRequestInFlight = false;
+let serverHistoryNextRetryAtMs = 0;
+let serverHistoryRetryTimerId = null;
+let seededLastTs = '';
+let sortState = { key: 'Username', dir: 'asc' };
+let serverPersistedAttempts = 0;
+
+function matchesServerIdentity(candidate) {
+    const raw = String(candidate || '').trim().toLowerCase();
+    if (!raw) return false;
+    const short = raw.split('.')[0];
+    return raw === serverNameLower || short === serverNameShortLower;
+}
+
+function getAllServersFarmName() {
+    return (snapshot && snapshot.AllServersFarmName) || 'All servers';
+}
+
+function isAllServersFarm(farmName) {
+    return !farmName || farmName.toLowerCase() === getAllServersFarmName().toLowerCase();
+}
+
+function dashboardUrl(farmName) {
+    const farm = farmName || selectedFarm || getAllServersFarmName();
+    if (isAllServersFarm(farm)) {
+        return '/dashboard';
+    }
+    return '/dashboard?farm=' + encodeURIComponent(farm);
+}
+
+function syncDashboardLinks() {
+    const href = dashboardUrl(selectedFarm);
+    if (backDashboardLinkEl) backDashboardLinkEl.href = href;
+    if (headerDashboardLinkEl) headerDashboardLinkEl.href = href;
+}
+
+function setServerDebugPanel(lines) {
+    if (!debugMode) return;
+    const el = document.getElementById('server-debug');
+    if (!el) return;
+    el.style.display = 'block';
+    el.textContent = lines.join('\n');
+}
+
+async function refreshServerDebugPanel() {
+    if (!debugMode) return;
+    try {
+        const url = '/api/history-debug?name=' + encodeURIComponent(serverName || '');
+        const res = await fetch(url, { cache: 'no-store' });
+        if (res.status === 401) {
+            window.location.href = '/login';
+            return;
+        }
+        if (!res.ok) {
+            setServerDebugPanel(['history-debug unavailable: HTTP ' + res.status]);
+            return;
+        }
+        const d = await res.json();
+        setServerDebugPanel([
+            '[server debug]',
+            'serverName=' + (serverName || '-'),
+            'historySeeded=' + historySeeded + ', seededLastTs=' + (seededLastTs || '-'),
+            'persistedAttempts=' + serverPersistedAttempts,
+            'sqliteEnabled=' + !!d.SqliteEnabled,
+            'dbExists=' + !!d.DbExists,
+            'resolvedServer=' + (d.ResolvedServer || '-'),
+            'serverShort=' + (d.ServerShort || '-'),
+            'serverRowsLast1Hour=' + (d.ServerRowsLast1Hour ?? 0),
+            'serverLatestTs=' + (d.ServerLatestTsUtc || '-'),
+            'snapshotGeneratedAt=' + (((d.Snapshot || {}).GeneratedAtUtc) || '-'),
+            'snapshotServers=' + (((d.Snapshot || {}).ServersCount) ?? 0),
+            'snapshotSessions=' + (((d.Snapshot || {}).SessionsCount) ?? 0),
+            'dbQueryError=' + (d.DbQueryError || '-'),
+            'snapshotReadError=' + (((d.Snapshot || {}).SnapshotReadError) || '-')
+        ]);
+    } catch (e) {
+        setServerDebugPanel(['history-debug error: ' + (e && e.message ? e.message : e)]);
+    }
+}
+
+function clampValue(value, maxValue) {
+    const n = Number(value);
+    if (Number.isNaN(n)) return 0;
+    return Math.min(maxValue, Math.max(0, n));
+}
+
+function pushHistory(history, value, maxValue) {
+    history.push(clampValue(value, maxValue));
+    if (history.length > historyMax) {
+        history.shift();
+    }
+}
+
+function pushTsHistory(history, value) {
+    history.push((value || '').toString());
+    if (history.length > historyMax) {
+        history.shift();
+    }
+}
+
+function formatRomeTime(value) {
+    if (!value) return '-';
+    const tsMs = parseTimestampMs(value);
+    const dt = Number.isNaN(tsMs) ? new Date(value) : new Date(tsMs);
+    if (Number.isNaN(dt.getTime())) return value;
+    return dt.toLocaleString('it-IT', {
+        timeZone: 'Europe/Rome',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false
+    });
+}
+
+function formatRomeTick(value) {
+    if (!value) return '-';
+    const tsMs = parseTimestampMs(value);
+    const dt = Number.isNaN(tsMs) ? new Date(value) : new Date(tsMs);
+    if (Number.isNaN(dt.getTime())) return value;
+    return dt.toLocaleString('it-IT', {
+        timeZone: 'Europe/Rome',
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    });
+}
+
+function setAxisLabels(leftId, rightId, leftVal, rightVal) {
+    const leftEl = document.getElementById(leftId);
+    const rightEl = document.getElementById(rightId);
+    if (leftEl) leftEl.textContent = formatRomeTick(leftVal);
+    if (rightEl) rightEl.textContent = formatRomeTick(rightVal);
+}
+
+function parseTimestampMs(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return Number.NaN;
+
+    // History timestamps are UTC-oriented. If timezone is missing, force UTC parsing.
+    const hasExplicitZone = /(?:Z|[+\-]\d{2}:?\d{2})$/i.test(raw);
+    let normalized = raw;
+    if (!hasExplicitZone) {
+        normalized = raw.replace(' ', 'T') + 'Z';
+    }
+
+    const ms = Date.parse(normalized);
+    if (!Number.isNaN(ms)) {
+        return ms;
+    }
+
+    // Fallback parser for timestamps with high-precision fractions or uncommon separators.
+    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?(Z|[+\-]\d{2}:?\d{2})?$/i);
+    if (m) {
+        const year = Number(m[1]);
+        const month = Number(m[2]);
+        const day = Number(m[3]);
+        const hour = Number(m[4]);
+        const minute = Number(m[5]);
+        const second = Number(m[6] || '0');
+        const frac = String(m[7] || '');
+        const zone = String(m[8] || '');
+        const msText = (frac + '000').slice(0, 3);
+        const millis = Number(msText);
+
+        let utcMs = Date.UTC(year, month - 1, day, hour, minute, second, Number.isNaN(millis) ? 0 : millis);
+        if (zone && zone.toUpperCase() !== 'Z') {
+            const zm = zone.match(/^([+\-])(\d{2}):?(\d{2})$/);
+            if (zm) {
+                const sign = zm[1] === '-' ? -1 : 1;
+                const zh = Number(zm[2]);
+                const zmin = Number(zm[3]);
+                const offsetMinutes = (zh * 60) + zmin;
+                utcMs -= sign * offsetMinutes * 60 * 1000;
+            }
+        }
+        return utcMs;
+    }
+
+    return Date.parse(raw);
+}
+
+function scheduleServerHistoryRetry(delayMs) {
+    if (serverHistoryLoaded || serverHistoryRequestInFlight) {
+        return;
+    }
+    if (serverHistoryRetryTimerId) {
+        clearTimeout(serverHistoryRetryTimerId);
+        serverHistoryRetryTimerId = null;
+    }
+    serverHistoryRetryTimerId = setTimeout(() => {
+        serverHistoryRetryTimerId = null;
+        void ensurePersistedServerHistoryLoaded();
+    }, Math.max(1000, Number(delayMs) || 10000));
+}
+
+function trimLastHour(history, tsArr) {
+    let latestTs = Number.NaN;
+    for (let i = tsArr.length - 1; i >= 0; i--) {
+        const ts = parseTimestampMs(tsArr[i]);
+        if (!Number.isNaN(ts)) {
+            latestTs = ts;
+            break;
+        }
+    }
+    if (Number.isNaN(latestTs)) {
+        return;
+    }
+
+    const oneHourAgo = latestTs - (60 * 60 * 1000);
+    let keepFrom = -1;
+    for (let i = 0; i < tsArr.length; i++) {
+        const ts = parseTimestampMs(tsArr[i]);
+        if (!Number.isNaN(ts) && ts >= oneHourAgo) {
+            keepFrom = i;
+            break;
+        }
+    }
+
+    if (keepFrom > 0) {
+        history.splice(0, keepFrom);
+        tsArr.splice(0, keepFrom);
+    } else if (keepFrom === -1) {
+        history.length = 0;
+        tsArr.length = 0;
+    }
+}
+
+function trimCpuRamLastHour() {
+    let latestTs = Number.NaN;
+    for (let i = tsHistory.length - 1; i >= 0; i--) {
+        const ts = parseTimestampMs(tsHistory[i]);
+        if (!Number.isNaN(ts)) {
+            latestTs = ts;
+            break;
+        }
+    }
+    if (Number.isNaN(latestTs)) {
+        return;
+    }
+
+    const oneHourAgo = latestTs - (60 * 60 * 1000);
+    let keepFrom = -1;
+    for (let i = 0; i < tsHistory.length; i++) {
+        const ts = parseTimestampMs(tsHistory[i]);
+        if (!Number.isNaN(ts) && ts >= oneHourAgo) {
+            keepFrom = i;
+            break;
+        }
+    }
+
+    if (keepFrom > 0) {
+        cpuHistory.splice(0, keepFrom);
+        ramHistory.splice(0, keepFrom);
+        tsHistory.splice(0, keepFrom);
+    } else if (keepFrom === -1) {
+        cpuHistory.length = 0;
+        ramHistory.length = 0;
+        tsHistory.length = 0;
+    }
+}
+
+function drawTaskGraph(canvas, history, strokeColor, fillColor, minScaleMax, xPointSpan) {
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const width = Math.max(1, Math.floor(rect.width));
+    const height = Math.max(1, Math.floor(rect.height));
+    const dpr = window.devicePixelRatio || 1;
+
+    if (canvas.width !== Math.floor(width * dpr) || canvas.height !== Math.floor(height * dpr)) {
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+    }
+
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+
+    ctx.fillStyle = '#0c1d33';
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 5; i++) {
+        const y = (height / 5) * i;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+    }
+    for (let i = 1; i < 9; i++) {
+        const x = (width / 9) * i;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+    }
+
+    if (history.length === 0) return;
+
+    const scaleMax = Math.max((minScaleMax || 100), ...history, 1);
+    const pointSpan = Number.isFinite(xPointSpan) && xPointSpan > 1 ? xPointSpan : historyMax;
+    const step = width / Math.max(1, pointSpan - 1);
+    const xStart = width - (history.length - 1) * step;
+
+    ctx.beginPath();
+    for (let i = 0; i < history.length; i++) {
+        const x = xStart + i * step;
+        const y = height - (history[i] / scaleMax) * height;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.lineTo(xStart + (history.length - 1) * step, height);
+    ctx.lineTo(xStart, height);
+    ctx.closePath();
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+}
+
+function renderGraphs() {
+    trimCpuRamLastHour();
+    trimLastHour(sessionsHistory, sessionsTsHistory);
+
+    // Pass actual data length as xPointSpan so graphs scale correctly regardless of available data
+    drawTaskGraph(cpuCanvas, cpuHistory, '#48d9ff', 'rgba(72,217,255,0.22)', 100, cpuHistory.length);
+    drawTaskGraph(ramCanvas, ramHistory, '#8bff75', 'rgba(139,255,117,0.22)', 100, ramHistory.length);
+    drawTaskGraph(sessionsCanvas, sessionsHistory, '#fbbf24', 'rgba(251,191,36,0.22)', 10, sessionsHistory.length);
+
+    const cpuStart = tsHistory.length > 0 ? tsHistory[0] : '';
+    const cpuEnd = tsHistory.length > 0 ? tsHistory[tsHistory.length - 1] : '';
+    setAxisLabels('cpu-x-left', 'cpu-x-right', cpuStart, cpuEnd);
+    setAxisLabels('ram-x-left', 'ram-x-right', cpuStart, cpuEnd);
+
+    const sStart = sessionsTsHistory.length > 0 ? sessionsTsHistory[0] : '';
+    const sEnd = sessionsTsHistory.length > 0 ? sessionsTsHistory[sessionsTsHistory.length - 1] : '';
+    setAxisLabels('sessions-x-left', 'sessions-x-right', sStart, sEnd);
+}
+
+function normalizeSortValue(value, key) {
+    if (key === 'ID' || key === 'SessionCPU' || key === 'SessionRAMMB') {
+        const n = Number(value);
+        return Number.isNaN(n) ? -1 : n;
+    }
+    return (value || '').toString().toLowerCase();
+}
+
+function sortedSessions(sessions) {
+    const key = sortState.key;
+    const dir = sortState.dir === 'asc' ? 1 : -1;
+    return [...sessions].sort((a, b) => {
+        const av = normalizeSortValue(a[key], key);
+        const bv = normalizeSortValue(b[key], key);
+        if (av > bv) return 1 * dir;
+        if (av < bv) return -1 * dir;
+        return 0;
+    });
+}
+
+function updateSortIndicators() {
+    sortableHeaders.forEach(th => {
+        const key = th.getAttribute('data-sort-key');
+        const span = th.querySelector('.sort-indicator');
+        if (!span) return;
+        span.textContent = (key === sortState.key)
+            ? (sortState.dir === 'asc' ? '\u25B2' : '\u25BC')
+            : '\u2195';
+    });
+}
+
+function initSorting() {
+    sortableHeaders.forEach(th => {
+        th.addEventListener('click', () => {
+            const key = th.getAttribute('data-sort-key');
+            if (!key) return;
+            if (sortState.key === key) {
+                sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortState.key = key;
+                sortState.dir = 'asc';
+            }
+            updateSortIndicators();
+            renderRows();
+        });
+    });
+    updateSortIndicators();
+}
+
+function actionButton(row) {
+    if (row.State === 'Active') {
+        return `<button class='btn-disc' onclick="runAction('disconnect','${row.Server}','${row.ID}','${(row.Username || '').replace(/'/g, '&#39;')}','${(row.SessionName || '').replace(/'/g, '&#39;')}')">Disconnect</button>`;
+    }
+    return `<button class='btn-logoff' onclick="runAction('logoff','${row.Server}','${row.ID}','${(row.Username || '').replace(/'/g, '&#39;')}','${(row.SessionName || '').replace(/'/g, '&#39;')}')">Logoff</button>`;
+}
+
+function getServerSessions() {
+    if (!snapshot) return [];
+
+    const normSessionKey = (v) => {
+        const rawValue = ((v || 'console') + '').trim().toLowerCase();
+        const collapsed = rawValue.replace(/\s+/g, ' ').trim();
+        if (!collapsed) return 'console';
+        const match = collapsed.match(/^(.*?)(?:\s+|#)(\d+)$/);
+        if (match) {
+            const baseName = (match[1] || '').trim();
+            const suffix = match[2];
+            if (baseName) {
+                return `${baseName}#${suffix}`;
+            }
+        }
+        return collapsed;
+    };
+
+    return (snapshot.Sessions || [])
+        .filter(r => matchesServerIdentity(r && r.Server))
+        .map(r => {
+            const sessionKey = normSessionKey(r.SessionName);
+            const baseSessionKey = sessionKey.replace(/#\d+$/, '');
+            const metric = liveSessionMetrics[sessionKey] || liveSessionMetrics[baseSessionKey] || {};
+            return {
+                ...r,
+                SessionCPU: metric.SessionCPU ?? r.SessionCPU,
+                SessionRAMMB: metric.SessionRAMMB ?? r.SessionRAMMB
+            };
+        });
+}
+
+function renderRows() {
+    rowsEl.innerHTML = '';
+    if (!snapshot) return;
+    const sessions = getServerSessions();
+    sortedSessions(sessions).forEach(r => {
+        const tr = document.createElement('tr');
+                const cpuValue = (r.SessionCPU == null || Number.isNaN(Number(r.SessionCPU))) ? 'N/A' : (Number(r.SessionCPU).toFixed(1) + '%');
+                const ramValue = (r.SessionRAMMB == null || Number.isNaN(Number(r.SessionRAMMB))) ? 'N/A' : (Number(r.SessionRAMMB) / 1024).toFixed(2);
+        tr.innerHTML = `<td>${r.Username ? `<a href="/ad-search?q=${encodeURIComponent(r.Username)}" style="color:#1558c0;text-decoration:none;" title="Search AD for ${r.Username}">${r.Username}</a>` : ''}</td>
+          <td>${r.SessionName || ''}</td>
+                    <td>${cpuValue}</td>
+                    <td>${ramValue}</td>
+          <td>${r.ID}</td>
+          <td>${r.State}</td>
+          <td>${r.IdleTime || ''}</td>
+          <td>${r.LogonTime || ''}</td>
+          <td><div class='actions'>${actionButton(r)}<button class='btn-msg' onclick="sendMsg('${r.Server}','${r.ID}','${(r.Username || '').replace(/'/g, '&#39;')}')">Message</button></div></td>`;
+        rowsEl.appendChild(tr);
+    });
+}
+
+async function runAction(action, server, id, username, sessionName) {
+  const body = new URLSearchParams({ action, server, id, username: username || '', sessionName: sessionName || '' });
+    const res = await fetch('/api/session-action', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRF-Token':csrfToken}, body: body.toString() });
+  const txt = await res.text();
+  if (!res.ok) { alert('Action failed: ' + txt); return; }
+  alert('Action completed.');
+  await refreshData();
+}
+
+async function sendMsg(server, id, username) {
+    const msg = prompt('Message for ' + username + ':');
+    if (msg === null) return;
+    if (!msg.trim()) { alert('Message cannot be empty.'); return; }
+    const body = new URLSearchParams({ action:'sendmsg', server, id, message:msg });
+    const res = await fetch('/api/session-action', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRF-Token':csrfToken}, body: body.toString() });
+    const txt = await res.text();
+    if (!res.ok) { alert('Send failed: ' + txt); return; }
+    alert('Message sent.');
+}
+
+function setServerHostInfo(payload) {
+    const osValue = (payload && payload.OS) ? payload.OS : 'N/A';
+    const typeValue = (payload && payload.HostType) ? payload.HostType : 'N/A';
+    const ramValue = (payload && payload.RAMGB != null && !Number.isNaN(Number(payload.RAMGB)))
+        ? Number(payload.RAMGB).toFixed(1)
+        : 'N/A';
+    const coresValue = (payload && payload.Cores != null && !Number.isNaN(Number(payload.Cores)))
+        ? Number(payload.Cores).toString()
+        : 'N/A';
+    const ipsValue = (payload && Array.isArray(payload.IPs) && payload.IPs.length > 0)
+        ? payload.IPs.join(', ')
+        : 'N/A';
+
+    document.getElementById('srv-os').textContent = osValue;
+    document.getElementById('srv-type').textContent = typeValue;
+    document.getElementById('srv-ramgb').textContent = ramValue;
+    document.getElementById('srv-cores').textContent = coresValue;
+    document.getElementById('srv-ips').textContent = ipsValue;
+}
+
+async function refreshServerHostInfo() {
+    if (!serverName) {
+        setServerHostInfo(null);
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/server-host-info?name=' + encodeURIComponent(serverName), { cache: 'no-store' });
+        if (res.status === 401) {
+            window.location.href = '/login';
+            return;
+        }
+        if (!res.ok) {
+            setServerHostInfo(null);
+            return;
+        }
+
+        const payload = await res.json();
+        setServerHostInfo(payload);
+    }
+    catch (err) {
+        console.warn('Server host info refresh failed', err);
+        setServerHostInfo(null);
+    }
+}
+
+async function refreshData() {
+    let nextDelayMs = 10000;
+
+    try {
+        const res = await fetch('/api/data', { cache:'no-store' });
+        if (res.status === 401) {
+            window.location.href = '/login';
+            return;
+        }
+
+        snapshot = await res.json();
+        const matchingServer = (snapshot.Servers || []).find((server) => {
+            const fqdn = String((server && server.Server) || '');
+            const short = String((server && server.Short) || fqdn.split('.')[0] || '');
+            return fqdn.toLowerCase() === serverName.toLowerCase() || short.toLowerCase() === serverName.toLowerCase();
+        });
+        const serverFarm = String((matchingServer && matchingServer.Farm) || '');
+        const farmCatalog = Array.isArray(snapshot && snapshot.FarmCatalog) ? snapshot.FarmCatalog : [];
+        const allServersName = getAllServersFarmName();
+        const validFarm = farmCatalog.find((farm) => String(farm.Name || '').toLowerCase() === String(selectedFarm || '').toLowerCase());
+        selectedFarm = validFarm ? validFarm.Name : selectedFarm || allServersName;
+        syncDashboardLinks();
+        
+        // Update server focus display to include farm name
+        if (serverFocusEl && serverFarm) {
+            serverFocusEl.textContent = serverName + ' on the ' + serverFarm + ' farm';
+        }
+
+        const metricsUrl = '/api/server-session-metrics?name=' + encodeURIComponent(serverName) + '&debug=1';
+        const metricsFetch = fetch(metricsUrl, { cache:'no-store' }).catch(() => null);
+        const metricsRes = await Promise.race([
+            metricsFetch,
+            new Promise(resolve => setTimeout(() => resolve(null), 3000))
+        ]);
+
+        if (metricsRes && metricsRes.status === 401) {
+            window.location.href = '/login';
+            return;
+        }
+
+        if (metricsRes && metricsRes.ok) {
+            const metricsPayload = await metricsRes.json();
+            liveSessionMetrics = metricsPayload.MetricsBySessionName || {};
+            if (metricsPayload.Debug) {
+                const pendingSessions = getServerSessions();
+                const allNa = pendingSessions.length > 0 && pendingSessions.every(r => r.SessionCPU == null && r.SessionRAMMB == null);
+                if (allNa) {
+                    console.warn('Session metrics debug', metricsPayload.Debug);
+                }
+            }
+        } else {
+            liveSessionMetrics = {};
+        }
+
+        const sessions = getServerSessions();
+        const active = sessions.filter(r => r.State === 'Active').length;
+        const disc = sessions.filter(r => /^Disc/i.test(r.State)).length;
+        document.getElementById('s-total').textContent = sessions.length;
+        document.getElementById('s-active').textContent = active;
+        document.getElementById('s-disc').textContent = disc;
+        document.getElementById('s-ts').textContent = formatRomeTime(snapshot.GeneratedAtUtc);
+        const srvData = (snapshot.Servers || []).find(s => matchesServerIdentity((s && (s.Server || s.Short))));
+        document.getElementById('s-cpu').textContent = srvData && srvData.CPU != null ? srvData.CPU + '%' : 'N/A';
+        document.getElementById('s-ram').textContent = srvData && srvData.RAM != null ? srvData.RAM + '%' : 'N/A';
+        const currentTs = (snapshot.GeneratedAtUtc || '').toString();
+        
+        // Ensure the chart has at least the current point while persisted history loads in the background.
+        if (!historySeeded && cpuHistory.length === 0 && ramHistory.length === 0 && currentTs && srvData) {
+            pushHistory(cpuHistory, srvData && srvData.CPU != null ? srvData.CPU : 0, 100);
+            pushHistory(ramHistory, srvData && srvData.RAM != null ? srvData.RAM : 0, 100);
+            pushHistory(sessionsHistory, sessions.length, 1000);
+            pushTsHistory(tsHistory, currentTs);
+            pushTsHistory(sessionsTsHistory, currentTs);
+            seededLastTs = currentTs;
+            historySeeded = true;
+        }
+        
+        const shouldAppendCurrent = (currentTs !== seededLastTs);
+        if (shouldAppendCurrent) {
+            pushHistory(cpuHistory, srvData && srvData.CPU != null ? srvData.CPU : 0, 100);
+            pushHistory(ramHistory, srvData && srvData.RAM != null ? srvData.RAM : 0, 100);
+            pushHistory(sessionsHistory, sessions.length, 1000);
+            pushTsHistory(tsHistory, currentTs);
+            pushTsHistory(sessionsTsHistory, currentTs);
+        }
+        // CPU/RAM may be preloaded from persisted history while sessions are not;
+        // seed at least one sessions point even if the snapshot timestamp has not advanced yet.
+        if (!shouldAppendCurrent && sessionsHistory.length === 0 && currentTs) {
+            pushHistory(sessionsHistory, sessions.length, 1000);
+            pushTsHistory(sessionsTsHistory, currentTs);
+        }
+
+        const currentCpuText = (srvData && srvData.CPU != null) ? (srvData.CPU + '%') : 'N/A';
+        const currentRamText = (srvData && srvData.RAM != null) ? (srvData.RAM + '%') : 'N/A';
+        const maxCpuText = (cpuHistory.length > 0) ? (Math.max(...cpuHistory).toFixed(1) + '%') : 'N/A';
+        const maxRamText = (ramHistory.length > 0) ? (Math.max(...ramHistory).toFixed(1) + '%') : 'N/A';
+        const maxSessionsText = (sessionsHistory.length > 0) ? Math.max(...sessionsHistory).toFixed(0) : 'N/A';
+        document.getElementById('cpu-now').textContent = currentCpuText + ' | Max: ' + maxCpuText;
+        document.getElementById('ram-now').textContent = currentRamText + ' | Max: ' + maxRamText;
+        document.getElementById('sessions-now').textContent = sessions.length + ' | Max: ' + maxSessionsText;
+
+        seededLastTs = currentTs;
+        renderGraphs();
+    void ensurePersistedServerHistoryLoaded();
+        renderRows();
+        await refreshServerDebugPanel();
+        nextDelayMs = ((snapshot.NextCycleDelaySeconds || 10) * 1000);
+    }
+    catch (err) {
+        console.warn('Detail refresh failed', err);
+        await refreshServerDebugPanel();
+    }
+
+    setTimeout(refreshData, nextDelayMs);
+}
+
+async function ensurePersistedServerHistoryLoaded() {
+    if (!serverName || serverHistoryLoaded || serverHistoryRequestInFlight) {
+        return;
+    }
+
+    const nowMs = Date.now();
+    if (nowMs < serverHistoryNextRetryAtMs) {
+        return;
+    }
+
+    serverHistoryRequestInFlight = true;
+    try {
+        serverPersistedAttempts++;
+        const persistedRes = await fetch('/api/server-history?name=' + encodeURIComponent(serverName), { cache:'no-store' });
+        if (persistedRes.status === 401) {
+            window.location.href = '/login';
+            return;
+        }
+        if (!persistedRes.ok) {
+            serverHistoryNextRetryAtMs = Date.now() + 10000;
+            scheduleServerHistoryRetry(10000);
+            return;
+        }
+
+        const persistedText = await persistedRes.text();
+        if (!persistedText || !persistedText.trim()) {
+            serverHistoryNextRetryAtMs = Date.now() + 10000;
+            scheduleServerHistoryRetry(10000);
+            return;
+        }
+
+        let persistedSeries = null;
+        try {
+            persistedSeries = JSON.parse(persistedText);
+        }
+        catch (parseErr) {
+            console.warn('Persisted server history payload parse failed', {
+                status: persistedRes.status,
+                contentType: persistedRes.headers.get('content-type') || '',
+                contentLength: persistedRes.headers.get('content-length') || '',
+                bodySample: persistedText.slice(0, 200),
+                error: (parseErr && parseErr.message) ? parseErr.message : parseErr
+            });
+            serverHistoryNextRetryAtMs = Date.now() + 10000;
+            scheduleServerHistoryRetry(10000);
+            return;
+        }
+
+        if (!Array.isArray(persistedSeries) || persistedSeries.length === 0) {
+            serverHistoryNextRetryAtMs = Date.now() + 10000;
+            scheduleServerHistoryRetry(10000);
+            return;
+        }
+
+        const persistedWindow = persistedSeries.filter(p => {
+            if (!p || !p.Ts) return false;
+            const ts = parseTimestampMs(p.Ts);
+            return !Number.isNaN(ts);
+        }).slice(-historyMax);
+        if (persistedWindow.length === 0) {
+            serverHistoryNextRetryAtMs = Date.now() + 10000;
+            scheduleServerHistoryRetry(10000);
+            return;
+        }
+
+        cpuHistory.length = 0;
+        ramHistory.length = 0;
+        sessionsHistory.length = 0;
+        tsHistory.length = 0;
+        sessionsTsHistory.length = 0;
+        persistedWindow.forEach(p => {
+            pushHistory(cpuHistory, (p && p.CPU != null) ? p.CPU : 0, 100);
+            pushHistory(ramHistory, (p && p.RAM != null) ? p.RAM : 0, 100);
+            pushTsHistory(tsHistory, (p && p.Ts) ? p.Ts : '');
+            if (p && p.Sessions != null && !Number.isNaN(Number(p.Sessions))) {
+                pushHistory(sessionsHistory, p.Sessions, 1000);
+                pushTsHistory(sessionsTsHistory, (p && p.Ts) ? p.Ts : '');
+            }
+        });
+        seededLastTs = (persistedWindow[persistedWindow.length - 1].Ts || '').toString();
+        historySeeded = true;
+        serverHistoryLoaded = true;
+        serverHistoryNextRetryAtMs = 0;
+        if (serverHistoryRetryTimerId) {
+            clearTimeout(serverHistoryRetryTimerId);
+            serverHistoryRetryTimerId = null;
+        }
+
+        if (snapshot) {
+            const srvData = (snapshot.Servers || []).find(s => matchesServerIdentity((s && (s.Server || s.Short))));
+            const currentTs = (snapshot.GeneratedAtUtc || '').toString();
+            const sessions = getServerSessions();
+            if (currentTs && currentTs !== seededLastTs) {
+                pushHistory(cpuHistory, srvData && srvData.CPU != null ? srvData.CPU : 0, 100);
+                pushHistory(ramHistory, srvData && srvData.RAM != null ? srvData.RAM : 0, 100);
+                pushHistory(sessionsHistory, sessions.length, 1000);
+                pushTsHistory(tsHistory, currentTs);
+                pushTsHistory(sessionsTsHistory, currentTs);
+                seededLastTs = currentTs;
+            } else if (sessionsHistory.length === 0 && currentTs) {
+                pushHistory(sessionsHistory, sessions.length, 1000);
+                pushTsHistory(sessionsTsHistory, currentTs);
+            }
+        }
+
+        renderGraphs();
+    }
+    catch (persistedErr) {
+        console.warn('Persisted server history load failed', persistedErr);
+        serverHistoryNextRetryAtMs = Date.now() + 10000;
+        scheduleServerHistoryRetry(10000);
+    }
+    finally {
+        serverHistoryRequestInFlight = false;
+    }
+
+    if (debugMode && !historySeeded) {
+        console.warn('Server persisted preload not seeded yet', { attempt: serverPersistedAttempts, serverName });
+    }
+}
+
+initSorting();
+window.addEventListener('resize', renderGraphs);
+syncDashboardLinks();
+refreshServerHostInfo();
+refreshData();
+</script>
+</body>
+</html>

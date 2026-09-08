@@ -1,0 +1,605 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>__DASHBOARD_TITLE__</title>
+  <style>
+    body { margin:0; background:#f4f7fb; font-family: Segoe UI, Tahoma, sans-serif; }
+    header { padding:6px 18px; background:#123a7a; color:#fff; display:flex; gap:12px; align-items:center; justify-content:space-between; }
+    header .logo-link { display:inline-flex; align-items:center; border-radius:8px; transition: transform 140ms ease, filter 140ms ease, box-shadow 140ms ease; }
+    .logo-mark { position:relative; width:96px; height:64px; display:inline-flex; align-items:center; justify-content:flex-start; overflow:hidden; }
+    .logo-fallback { position:absolute; inset:0; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background:rgba(255,255,255,0.2); color:#fff; font-size:28px; font-weight:700; letter-spacing:0.4px; opacity:0; transition:opacity 120ms ease; }
+    .logo-image { position:relative; width:96px; height:96px; display:block; opacity:0; transition:opacity 120ms ease; object-fit:contain; }
+    .logo-image.is-ready { opacity:1; }
+    .logo-fallback.is-shown { opacity:1; }
+    .logo-fallback.is-hidden { opacity:0; pointer-events:none; }
+    header .logo-link:hover, header .logo-link:focus-visible { transform: scale(1.1) rotate(-2deg); filter: drop-shadow(0 0 8px rgba(255,255,255,0.55)); box-shadow: none; outline: 2px solid rgba(255,255,255,0.6); outline-offset:3px; }
+    header .title-wrap { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .farm-picker { display:inline-flex; align-items:center; gap:8px; padding:4px 6px; border-radius:12px; border:2px solid #facc15; background:#facc15; }
+    .farm-label { display:inline-flex; align-items:center; padding:2px 6px; border-radius:8px; color:#172554; font-size:12px; font-weight:800; letter-spacing:0.2px; }
+    .farm-select { min-width:180px; padding:7px 12px; border-radius:8px; border:0; background:#fef3c7; color:#0f172a; font-weight:700; box-shadow:0 0 0 1px rgba(146,64,14,0.2) inset; }
+    .farm-select:focus-visible { outline:2px solid #facc15; outline-offset:2px; }
+    .farm-select option { color:#111827; background:#fff; }
+    .shell { padding:14px; }
+    .header-links { display:flex; align-items:center; gap:10px; }
+    .stats-header-row { align-items:flex-start; }
+    .stats-toolbar { display:flex; flex-direction:column; align-items:flex-end; gap:8px; margin-left:auto; }
+    .refresh-note-inline { margin-top:4px; color:#7c2d12; font-size:11px; font-weight:600; white-space:nowrap; }
+    .quick-links { display:flex; gap:8px; align-items:center; flex-wrap:nowrap; }
+    .ad-link-row { display:flex; justify-content:flex-end; width:100%; }
+    .flash-banner { margin:0 14px 10px; border-radius:10px; padding:10px 12px; background:#fff4ce; border:1px solid #ffb900; color:#5c4400; font-weight:600; }
+    .stats { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
+    .stats-primary .stat { padding:5px 12px; }
+    .stats-primary .stat-farm { min-height:61px; padding:10px 24px; }
+    .stats-primary .stat-farm > div:last-child { margin-top:4px; font-size:1.5rem; }
+    .stat { background:#edfaf1; border:1px solid #2e9e5b; border-radius:10px; padding:10px 12px; box-shadow:0 2px 6px rgba(22,101,52,0.18); min-width:110px; }
+    .stat-farm { background:#166534; border-color:#14532d; color:#fff; cursor:pointer; transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease; transform-origin:center center; min-width:220px; min-height:116px; padding:20px 24px; }
+    .stat-farm .muted { color:#86efac; }
+    .stat-farm > div:last-child { font-size:2rem; font-weight:700; line-height:1; margin-top:8px; }
+    .stat-farm:hover, .stat-farm:focus-visible { transform: scale(1.07); box-shadow:0 8px 20px rgba(22,101,52,0.45); filter: brightness(1.12); outline:2px solid #4ade80; outline-offset:2px; }
+    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; margin-bottom:12px; }
+    .card { border-radius:10px; padding:10px; box-shadow:0 2px 6px rgba(0,0,0,0.12); font-size:12px; transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease; transform-origin:center center; }
+    .card:hover,
+    .card:focus-visible { transform: scale(1.05); box-shadow:0 10px 22px rgba(18,58,122,0.35); filter: saturate(1.08); outline:2px solid rgba(18,58,122,0.5); outline-offset:2px; z-index:2; }
+    .bar { height:7px; background:#e4e6eb; border-radius:8px; overflow:hidden; margin:3px 0 8px; }
+    .fill { height:100%; }
+    .controls { display:flex; gap:10px; align-items:center; margin-bottom:10px; }
+    .health-summary { display:none; margin:0 0 12px; border-radius:10px; padding:10px 12px; font-size:13px; font-weight:600; }
+    .health-summary a { color:inherit; font-weight:700; }
+    .health-summary-warn { display:block; background:#fef3c7; border:1px solid #f59e0b; color:#92400e; }
+    .health-summary-bad { display:block; background:#fee2e2; border:1px solid #ef4444; color:#991b1b; }
+    #search { padding:8px; border:1px solid #b8c4d8; border-radius:8px; width:280px; max-width:100%; }
+    table { width:100%; border-collapse:collapse; background:#fff; }
+    th, td { border:1px solid #d7deea; padding:6px; text-align:left; font-size:13px; }
+    th { background:#223a64; color:#fff; }
+    th.sortable { cursor:pointer; user-select:none; }
+    .sort-indicator { margin-left:4px; font-size:11px; opacity:0.9; }
+    .actions { display:flex; gap:6px; }
+    button { border:0; border-radius:6px; padding:6px 8px; cursor:pointer; }
+    .btn-disc { background:#ffd66e; }
+    .btn-logoff { background:#ff9a9a; }
+    .btn-msg { background:#8fc3ff; }
+    .health-status-btn { background:#0f766e !important; transition: background 140ms ease; }
+    .health-status-btn-warn { background:#b45309 !important; }
+    .health-status-btn-bad { background:#b91c1c !important; }
+    .muted { color:#7c2d12; font-size:12px; font-weight:600; }
+    a { color:#fff; }
+
+    @media (max-width: 1200px) {
+      .stats-toolbar { margin-left:0; align-items:flex-start; }
+      .quick-links { flex-wrap:wrap; }
+      .ad-link-row { justify-content:flex-start; }
+      .refresh-note-inline { white-space:normal; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title-wrap"><a href="/dashboard" class="logo-link" aria-label="Dashboard home"><span class="logo-mark"><span class="logo-fallback is-hidden" aria-hidden="true">NB</span><img id="header-logo" class="logo-image" src="/logo.png" alt="Logo" width="96" height="96" /></span></a><strong>__DASHBOARD_TITLE__</strong><span class="farm-picker"><label for="farm-select" class="farm-label">Selected Farm:</label><select id="farm-select" class="farm-select" aria-label="Select displayed farm"><option value="">Loading...</option></select></span></div>
+    <div class="header-links"><span>Signed in as __SAFE_USER__ | <a href="/logout">Logout</a> | <a href="/help">Help</a></span></div>
+  </header>
+  <div id="flash-banner" class="flash-banner" style="display:none;">__FLASH_MESSAGE__</div>
+  <div class="shell">
+    <div class="stats stats-header-row">
+            <div class="stats-primary" style="display:flex;gap:12px;flex-wrap:wrap;">
+        <div class="stat stat-farm" tabindex="0" role="button" aria-label="Farm overview" onclick="window.location.href='/farm'" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.location.href='/farm';}"><div id="s-servers-label" class="muted">Total servers</div><div id="s-servers">0</div></div>
+            <div class="stat"><div class="muted">Total Connections</div><div id="s-total">0</div></div>
+        <div class="stat"><div class="muted">Active</div><div id="s-active">0</div></div>
+        <div class="stat"><div class="muted">Disconnected</div><div id="s-disc">0</div></div>
+            <div class="stat"><div class="muted">Last Update (Rome time)</div><div id="s-ts">-</div><div class="refresh-note-inline">__AUTO_REFRESH_TEXT__</div></div>
+      </div>
+            <div class="stats-toolbar">
+              <div class="quick-links">
+                <div class="stat" style="background:#1558c0;padding:0;display:flex;align-items:center;"><a href="/logs" style="color:#fff;text-decoration:none;padding:10px 12px;font-weight:600;border-radius:10px;display:block;">Show logs</a></div>
+                <div id="health-status-btn" class="stat health-status-btn" style="padding:0;display:flex;align-items:center;"><a href="/health" style="color:#fff;text-decoration:none;padding:10px 12px;font-weight:600;border-radius:10px;display:block;">Health status</a></div>
+                <div class="stat" style="background:#0f4ea8;padding:0;display:flex;align-items:center;"><a href="/settings" style="color:#fff;text-decoration:none;padding:10px 12px;font-weight:600;border-radius:10px;display:block;">Settings</a></div>
+              </div>
+              <div class="ad-link-row">
+                <div class="stat" style="background:#1558c0;padding:0;display:flex;align-items:center;"><a href="/ad-search" style="color:#fff;text-decoration:none;padding:10px 12px;font-weight:600;border-radius:10px;display:block;">__AD_SEARCH_LABEL__</a></div>
+              </div>
+            </div>
+            </div>
+    </div>
+              <div id="health-summary" class="health-summary" aria-live="polite"></div>
+    <div class="cards" id="cards"></div>
+    <div class="controls" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <input id="search" placeholder="Filter user/server/state" />
+    </div>
+    <table>
+      <thead>
+        <tr>
+                    <th class='sortable' data-sort-key='Server'>Server <span class='sort-indicator'>&harr;</span></th><th class='sortable' data-sort-key='Username'>User <span class='sort-indicator'>&harr;</span></th><th class='sortable' data-sort-key='SessionName'>Session <span class='sort-indicator'>&harr;</span></th><th class='sortable' data-sort-key='ID'>ID <span class='sort-indicator'>&harr;</span></th><th class='sortable' data-sort-key='State'>State <span class='sort-indicator'>&harr;</span></th><th class='sortable' data-sort-key='IdleTime'>Idle <span class='sort-indicator'>&harr;</span></th><th class='sortable' data-sort-key='LogonTime'>Logon <span class='sort-indicator'>&harr;</span></th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+<script>
+const csrfToken = '__CSRF_TOKEN__';
+const rowsEl = document.getElementById('rows');
+const cardsEl = document.getElementById('cards');
+const searchEl = document.getElementById('search');
+const healthSummaryEl = document.getElementById('health-summary');
+const sortableHeaders = Array.from(document.querySelectorAll('th[data-sort-key]'));
+const flashBannerEl = document.getElementById('flash-banner');
+const farmSelectEl = document.getElementById('farm-select');
+const headerLogoEl = document.getElementById('header-logo');
+const healthStatusBtnEl = document.getElementById('health-status-btn');
+const serversLabelEl = document.getElementById('s-servers-label');
+let snapshot = null;
+let sortState = { key: 'Server', dir: 'asc' };
+let lastHealthFetchMs = 0;
+const HEALTH_REFRESH_MS = 60000;
+const queryParams = new URLSearchParams(window.location.search);
+let selectedFarm = queryParams.get('farm') || '';
+
+function getAllServersFarmName() {
+  return (snapshot && snapshot.AllServersFarmName) || 'All servers';
+}
+
+function isAllServersFarm(farmName) {
+  return !farmName || farmName.toLowerCase() === getAllServersFarmName().toLowerCase();
+}
+
+function getFarmCatalog() {
+  return Array.isArray(snapshot && snapshot.FarmCatalog) ? snapshot.FarmCatalog : [];
+}
+
+function getFarmServerMap() {
+  return (snapshot && snapshot.FarmServerMap) || {};
+}
+
+function getServerFarm(serverName) {
+  if (!serverName) return '';
+  const serverMap = getFarmServerMap();
+  const name = String(serverName);
+  const short = name.split('.')[0];
+  for (const farmName of Object.keys(serverMap)) {
+    const servers = Array.isArray(serverMap[farmName]) ? serverMap[farmName] : [];
+    if (servers.some((srv) => String(srv).toLowerCase() === name.toLowerCase() || String(srv).split('.')[0].toLowerCase() === short.toLowerCase())) {
+      return farmName;
+    }
+  }
+  return '';
+}
+
+function normalizeSelectedFarm() {
+  const catalog = getFarmCatalog();
+  const allServersName = getAllServersFarmName();
+  if (!catalog.length) {
+    selectedFarm = allServersName;
+    return selectedFarm;
+  }
+
+  const match = catalog.find((farm) => String(farm.Name || '').toLowerCase() === String(selectedFarm || '').toLowerCase());
+  selectedFarm = match ? match.Name : allServersName;
+  return selectedFarm;
+}
+
+function buildFarmUrl(path, farmName) {
+  const farm = farmName || selectedFarm || getAllServersFarmName();
+  if (isAllServersFarm(farm)) {
+    return path;
+  }
+
+  const url = new URL(path, window.location.origin);
+  url.searchParams.set('farm', farm);
+  return url.pathname + url.search;
+}
+
+function buildServerUrl(serverName, farmName) {
+  const url = new URL('/server', window.location.origin);
+  url.searchParams.set('name', String(serverName || ''));
+  const farm = selectedFarm || getAllServersFarmName();
+  if (!isAllServersFarm(farm)) {
+    url.searchParams.set('farm', farm);
+  }
+  return url.pathname + url.search;
+}
+
+function getVisibleServers() {
+  const servers = Array.isArray(snapshot && snapshot.Servers) ? snapshot.Servers : [];
+  const activeFarm = normalizeSelectedFarm();
+  if (isAllServersFarm(activeFarm)) {
+    return servers;
+  }
+
+  return servers.filter((server) => {
+    const farm = server && (server.Farm || getServerFarm(server.Server));
+    return String(farm || '').toLowerCase() === activeFarm.toLowerCase();
+  });
+}
+
+function getVisibleSessions() {
+  const sessions = Array.isArray(snapshot && snapshot.Sessions) ? snapshot.Sessions : [];
+  const activeFarm = normalizeSelectedFarm();
+  if (isAllServersFarm(activeFarm)) {
+    return sessions;
+  }
+
+  return sessions.filter((session) => {
+    const farm = session && (session.Farm || getServerFarm(session.Server));
+    return String(farm || '').toLowerCase() === activeFarm.toLowerCase();
+  });
+}
+
+function renderFarmSelector() {
+  if (!farmSelectEl) {
+    return;
+  }
+
+  const catalog = getFarmCatalog();
+  if (!catalog.length) {
+    farmSelectEl.innerHTML = '<option value="">Loading...</option>';
+    farmSelectEl.disabled = true;
+    return;
+  }
+
+  const activeFarm = normalizeSelectedFarm();
+  farmSelectEl.innerHTML = '';
+  catalog.forEach((farm) => {
+    const option = document.createElement('option');
+    option.value = farm.Name;
+    option.textContent = farm.Name;
+    option.selected = farm.Name === activeFarm;
+    farmSelectEl.appendChild(option);
+  });
+  farmSelectEl.disabled = false;
+}
+
+function updateServersLabel() {
+  if (!serversLabelEl) {
+    return;
+  }
+
+  const activeFarm = normalizeSelectedFarm();
+  if (isAllServersFarm(activeFarm)) {
+    serversLabelEl.textContent = 'Total servers';
+    return;
+  }
+
+  serversLabelEl.textContent = `Total server for ${activeFarm}`;
+}
+
+function initHeaderLogo() {
+  if (!headerLogoEl) {
+    return;
+  }
+
+  const fallback = headerLogoEl.parentElement?.querySelector('.logo-fallback');
+  let slowLoadTimer = null;
+
+  const markReady = () => {
+    if (slowLoadTimer) {
+      clearTimeout(slowLoadTimer);
+    }
+    headerLogoEl.classList.add('is-ready');
+    if (fallback) {
+      fallback.classList.add('is-hidden');
+      fallback.classList.remove('is-shown');
+    }
+  };
+
+  if (headerLogoEl.complete && headerLogoEl.naturalWidth > 0) {
+    markReady();
+    return;
+  }
+
+  slowLoadTimer = setTimeout(() => {
+    if (fallback && !headerLogoEl.classList.contains('is-ready')) {
+      fallback.classList.add('is-shown');
+    }
+  }, 300);
+
+  headerLogoEl.addEventListener('load', markReady, { once: true });
+}
+
+function initFlashBanner() {
+  if (!flashBannerEl) {
+    return;
+  }
+
+  const text = (flashBannerEl.textContent || '').trim();
+  flashBannerEl.style.display = text ? 'block' : 'none';
+}
+
+function escapeHtml(value) {
+    return (value == null ? '' : String(value))
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderHealthSummary(health) {
+    const collector = (health && health.Collector) || {};
+    const restart = collector.Restart || {};
+    const snapshotMeta = (health && health.Snapshot) || {};
+    const healthState = collector.HealthState || 'Unknown';
+    const summaryText = collector.StatusText || collector.State || 'Unknown';
+    const detailText = restart.WarningReason || snapshotMeta.SnapshotReadError || '';
+
+    if (healthState === 'Healthy') {
+        healthSummaryEl.className = 'health-summary';
+        healthSummaryEl.textContent = '';
+        return;
+    }
+
+    const severityClass = healthState === 'Stopped' ? 'health-summary-bad' : 'health-summary-warn';
+    const detailHtml = detailText ? ` <span>${escapeHtml(detailText)}</span>` : '';
+    healthSummaryEl.className = `health-summary ${severityClass}`;
+    healthSummaryEl.innerHTML = `<span>Collector status: ${escapeHtml(summaryText)}.</span>${detailHtml} <a href="/health">Open health details</a>`;
+}
+
+function updateHealthButtonState(health) {
+  if (!healthStatusBtnEl) {
+    return;
+  }
+
+  const collector = (health && health.Collector) || {};
+  const snapshotMeta = (health && health.Snapshot) || {};
+  const collectorState = String(collector.HealthState || '').toLowerCase();
+  const hasDegradedData = !!snapshotMeta.HasDegradedData;
+
+  healthStatusBtnEl.classList.remove('health-status-btn-warn', 'health-status-btn-bad');
+
+  if (collectorState === 'stopped') {
+    healthStatusBtnEl.classList.add('health-status-btn-bad');
+    return;
+  }
+
+  if (collectorState === 'warning' || hasDegradedData) {
+    healthStatusBtnEl.classList.add('health-status-btn-warn');
+    return;
+  }
+}
+
+async function refreshHealth(force) {
+  const now = Date.now();
+  if (!force && (now - lastHealthFetchMs) < HEALTH_REFRESH_MS) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/health', { cache: 'no-store' });
+    if (res.status === 401) {
+      window.location.href = '/login';
+      return;
+    }
+    if (!res.ok) {
+      throw new Error('HTTP ' + res.status);
+    }
+
+    const health = await res.json();
+    lastHealthFetchMs = now;
+    renderHealthSummary(health);
+    updateHealthButtonState(health);
+  } catch (error) {
+    healthSummaryEl.className = 'health-summary health-summary-warn';
+    healthSummaryEl.innerHTML = `Health summary unavailable. <a href="/health">Open health details</a>`;
+    if (healthStatusBtnEl) {
+      healthStatusBtnEl.classList.remove('health-status-btn-bad');
+      healthStatusBtnEl.classList.add('health-status-btn-warn');
+    }
+  }
+}
+
+function normalizeSortValue(value, key) {
+    if (key === 'ID') {
+        const n = Number(value);
+        return Number.isNaN(n) ? -1 : n;
+    }
+    return (value || '').toString().toLowerCase();
+}
+
+function sortedSessions(sessions) {
+    const key = sortState.key;
+    const dir = sortState.dir === 'asc' ? 1 : -1;
+    return [...sessions].sort((a, b) => {
+        const av = normalizeSortValue(a[key], key);
+        const bv = normalizeSortValue(b[key], key);
+        if (av > bv) return 1 * dir;
+        if (av < bv) return -1 * dir;
+        return 0;
+    });
+}
+
+function updateSortIndicators() {
+    sortableHeaders.forEach(th => {
+        const key = th.getAttribute('data-sort-key');
+        const span = th.querySelector('.sort-indicator');
+        if (!span) return;
+        if (key === sortState.key) {
+            span.textContent = sortState.dir === 'asc' ? '\u25B2' : '\u25BC';
+        } else {
+            span.textContent = '\u2195';
+        }
+    });
+}
+
+function initSorting() {
+    sortableHeaders.forEach(th => {
+        th.addEventListener('click', () => {
+            const key = th.getAttribute('data-sort-key');
+            if (!key) return;
+            if (sortState.key === key) {
+                sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortState.key = key;
+                sortState.dir = 'asc';
+            }
+            updateSortIndicators();
+            renderRows();
+        });
+    });
+    updateSortIndicators();
+}
+
+function serverColor(count, cpu, ram) {
+  if (count === 0) return '#b3d9f7';
+  const maxLoad = Math.max(cpu || 0, ram || 0);
+  if (maxLoad >= 80) return '#ff9999';
+  if (maxLoad >= 60) return '#ffcc99';
+  if (maxLoad >= 40) return '#ffe599';
+  return '#c6f6c6';
+}
+
+function renderCards(servers) {
+  cardsEl.innerHTML = '';
+  servers.forEach(s => {
+    const card = document.createElement('div');
+    card.className = 'card';
+        card.tabIndex = 0;
+        card.setAttribute('role', 'button');
+        card.setAttribute('aria-label', 'Open details for ' + s.Short);
+    card.style.background = serverColor(s.Count, s.CPU, s.RAM);
+    card.style.cursor = 'pointer';
+    card.onclick = () => { window.location.href = buildServerUrl((s.Server || s.Short), s.Farm); };
+        card.onkeydown = (ev) => {
+            if (ev.key === 'Enter' || ev.key === ' ') {
+                ev.preventDefault();
+        window.location.href = buildServerUrl((s.Server || s.Short), s.Farm);
+            }
+        };
+    card.innerHTML = `<div><strong>${s.Short.split('.')[0].toUpperCase()}</strong></div>
+      <div>Sessions: ${s.Count}</div>
+      <div>CPU: ${s.CPU == null ? 'N/A' : s.CPU + '%'}</div>
+      <div class='bar'><div class='fill' style='width:${s.CPU || 0}%;background:#f97316'></div></div>
+      <div>RAM: ${s.RAM == null ? 'N/A' : s.RAM + '%'}</div>
+      <div class='bar'><div class='fill' style='width:${s.RAM || 0}%;background:#0ea5e9'></div></div>`;
+    cardsEl.appendChild(card);
+  });
+}
+
+function actionButton(row) {
+  if (row.State === 'Active') {
+    return `<button class='btn-disc' onclick="runAction('disconnect','${row.Server}','${row.ID}')">Disconnect</button>`;
+  }
+  if (/^Disc/i.test(row.State)) {
+    return `<button class='btn-logoff' onclick="runAction('logoff','${row.Server}','${row.ID}')">Logoff</button>`;
+  }
+  return `<button class='btn-logoff' onclick="runAction('logoff','${row.Server}','${row.ID}')">Logoff</button>`;
+}
+
+function renderRows() {
+  rowsEl.innerHTML = '';
+  if (!snapshot) return;
+  const q = (searchEl.value || '').toLowerCase();
+    sortedSessions(getVisibleSessions()).forEach(r => {
+                        const hay = `${r.Server} ${r.Username} ${r.State}`.toLowerCase();
+    if (q && !hay.includes(q)) return;
+    const sname = r.Server.split('.')[0].toUpperCase();
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><a href="${buildServerUrl((r.Server || sname), r.Farm)}" style="color:#123a7a;font-weight:600;text-decoration:none;">${sname}</a></td>
+      <td>${r.Username ? `<a href="/ad-search?q=${encodeURIComponent(r.Username)}" style="color:#1558c0;text-decoration:none;" title="Search AD for ${r.Username}">${r.Username}</a>` : ''}</td>
+      <td>${r.SessionName || ''}</td>
+      <td>${r.ID}</td>
+      <td>${r.State}</td>
+      <td>${r.IdleTime || ''}</td>
+      <td>${r.LogonTime || ''}</td>
+      <td><div class='actions'>${actionButton(r)}<button class='btn-msg' onclick="sendMsg('${r.Server}','${r.ID}','${(r.Username || '').replace(/'/g, "&#39;")}')">Message</button></div></td>`;
+    rowsEl.appendChild(tr);
+  });
+}
+
+async function runAction(action, server, id) {
+  const body = new URLSearchParams({ action, server, id });
+    const res = await fetch('/api/session-action', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRF-Token':csrfToken}, body: body.toString() });
+  const txt = await res.text();
+  if (!res.ok) {
+    alert('Action failed: ' + txt);
+    return;
+  }
+  alert('Action completed.');
+  await refreshData();
+}
+
+async function sendMsg(server, id, username) {
+  const msg = prompt('Message for ' + username + ':');
+  if (msg === null) return;
+  if (!msg.trim()) {
+    alert('Message cannot be empty.');
+    return;
+  }
+  const body = new URLSearchParams({ action:'sendmsg', server, id, message:msg });
+    const res = await fetch('/api/session-action', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRF-Token':csrfToken}, body: body.toString() });
+  const txt = await res.text();
+  if (!res.ok) {
+    alert('Send failed: ' + txt);
+    return;
+  }
+  alert('Message sent.');
+}
+
+async function refreshData() {
+  const res = await fetch('/api/data', { cache:'no-store' });
+  if (res.status === 401) {
+    window.location.href = '/login';
+    return;
+  }
+  snapshot = await res.json();
+    normalizeSelectedFarm();
+    renderFarmSelector();
+    updateServersLabel();
+    const formatRomeTime = (value) => {
+        if (!value) return '-';
+        const dt = new Date(value);
+        if (Number.isNaN(dt.getTime())) return value;
+        return dt.toLocaleString('it-IT', {
+            timeZone: 'Europe/Rome',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+    };
+    const visibleServers = getVisibleServers();
+    const visibleSessions = getVisibleSessions();
+    document.getElementById('s-total').textContent = visibleSessions.length;
+    document.getElementById('s-active').textContent = visibleSessions.filter((row) => row.State === 'Active').length;
+    document.getElementById('s-disc').textContent = visibleSessions.filter((row) => /^Disc/i.test(row.State || '')).length;
+    document.getElementById('s-servers').textContent = visibleServers.length;
+    document.getElementById('s-ts').textContent = formatRomeTime(snapshot.GeneratedAtUtc);
+    const farmOverviewCard = document.querySelector('.stat-farm');
+    if (farmOverviewCard) {
+        farmOverviewCard.onclick = () => { window.location.href = buildFarmUrl('/farm', selectedFarm); };
+        farmOverviewCard.onkeydown = (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                window.location.href = buildFarmUrl('/farm', selectedFarm);
+            }
+        };
+    }
+  renderCards(visibleServers);
+  renderRows();
+  refreshHealth(true);
+  const delay = ((snapshot.NextCycleDelaySeconds || 10) * 1000);
+  setTimeout(refreshData, delay);
+}
+
+searchEl.addEventListener('input', renderRows);
+if (farmSelectEl) {
+  farmSelectEl.addEventListener('change', () => {
+    const nextFarm = farmSelectEl.value || getAllServersFarmName();
+    const url = new URL(window.location.href);
+    if (isAllServersFarm(nextFarm)) {
+      url.searchParams.delete('farm');
+    } else {
+      url.searchParams.set('farm', nextFarm);
+    }
+    window.location.href = url.pathname + url.search;
+  });
+}
+initFlashBanner();
+initHeaderLogo();
+initSorting();
+refreshHealth(true);
+refreshData();
+</script>
+</body>
+</html>
