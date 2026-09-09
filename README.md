@@ -48,21 +48,21 @@ For AI agents guides, see [AGENTS.md](docs/AGENTS.md).
 
 ## Folder Contents
 
+- `docs/`: documentation directory
 - `webapp/`: application directory
   - `server.ps1`: HTTPS web server, authentication, routes, UI rendering
   - `collector.ps1`: background data collector for RDS sessions and server load
   - `setup_https_443.ps1`: certificate + SSL binding + URL ACL setup
   - `install_service.ps1`: Windows service creation/recreation script
   - `run_webapp.cmd`: foreground launcher for manual testing
-  - `config-example.toml`: tracked configuration template; see [CONFIG.md](CONFIG.md) for local configuration
+  - `config-example.toml`: tracked configuration template; see [CONFIG.md](docs/CONFIG.md) for local configuration
   - `PrePublish-Scan.ps1`: scans source and documentation for likely secrets and internal identifiers before publishing
   - `test-farm.ps1`: prompts for dashboard credentials and runs the standard deployment health checks
   - `Test-HealthEndpoints.ps1`: runs authenticated API and persistence health checks against a dashboard URL
-  - `logo-generic.png`: tracked public RDS logo used when no local company logo is available
-  - `logo-company.png`: optional local company logo override; intentionally ignored by Git
-  - `runtime/`: runtime data
+  - `logo-generic.png`: tracked public RDS logo used when no local company logo `logo-company.png` is available
+  - `runtime/`: runtime data (generated at first run)
     - `farm_metrics.sqlite`: persisted farm and per-server metric history
-  - `logs/`: service and collector logs
+  - `logs/`: service and collector logs  (generated at first run)
     - `server.log`: service/runtime log
       - Includes snapshot cache telemetry lines (`Snapshot cache stats: hits=... misses=... hitRate=...`)
     - `collector.log`: collector loop log
