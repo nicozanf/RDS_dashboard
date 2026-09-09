@@ -1,3 +1,5 @@
+For installation commands, see [INSTALL.md](INSTALL.md). For configuration details, see [CONFIG.md](CONFIG.md).
+
 
 # API endpoints, security and troubleshooting
 

@@ -1,6 +1,6 @@
 # RDS Dashboard Configuration
 
-This guide describes deployment configuration. For installation commands, see [INSTALL.md](INSTALL.md); for application behavior and operations, see [README.md](README.md).
+This guide describes deployment configuration. For installation commands, see [INSTALL.md](INSTALL.md). For authentication behavior, API reference, and firewall requirements, see [API.md](API.md).
 
 ## Local Configuration File
 

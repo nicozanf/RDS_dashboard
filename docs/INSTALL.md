@@ -8,7 +8,7 @@ Run all commands in an elevated PowerShell session from the application folder:
 Set-Location .\webapp
 ```
 
-For configuration details, see [CONFIG.md](CONFIG.md). For authentication behavior, API reference, and firewall requirements, see [README.md](README.md).
+For configuration details, see [CONFIG.md](CONFIG.md). For authentication behavior, API reference, and firewall requirements, see [API.md](API.md).
 
 ## Prerequisites
 

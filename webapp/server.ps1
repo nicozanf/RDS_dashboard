@@ -639,10 +639,15 @@ function Get-Farm24hHistoryPayload {
     }
 
     $querySql = @"
-SELECT farm_name, ts_utc, avg_cpu, avg_ram, total_sessions
+SELECT farm_name,
+       MAX(ts_utc) AS ts_utc,
+       AVG(avg_cpu) AS avg_cpu,
+       AVG(avg_ram) AS avg_ram,
+       ROUND(AVG(total_sessions)) AS total_sessions
 FROM farm_metrics_by_farm
 WHERE ts_epoch >= CAST(strftime('%s','now','-$safeDays days') AS INTEGER)$farmPredicate
-ORDER BY ts_epoch ASC, farm_name ASC;
+GROUP BY farm_name, (ts_epoch / 900)
+ORDER BY MAX(ts_epoch) ASC, farm_name ASC;
 "@
 
     try {
@@ -679,10 +684,14 @@ ORDER BY ts_epoch ASC, farm_name ASC;
 
         # Compatibility fallback for legacy schema without farm_name.
         $legacySql = @"
-SELECT ts_utc, avg_cpu, avg_ram, total_sessions
+SELECT MAX(ts_utc) AS ts_utc,
+       AVG(avg_cpu) AS avg_cpu,
+       AVG(avg_ram) AS avg_ram,
+       ROUND(AVG(total_sessions)) AS total_sessions
 FROM farm_metrics
 WHERE ts_epoch >= CAST(strftime('%s','now','-$safeDays days') AS INTEGER)
-ORDER BY ts_epoch ASC;
+GROUP BY (ts_epoch / 900)
+ORDER BY MAX(ts_epoch) ASC;
 "@
         $legacyResultQuery = Invoke-SqliteReadQuery -QuerySql $legacySql -NoHeader -Separator '|'
         if ($legacyResultQuery.Success) {
@@ -1843,7 +1852,7 @@ function Test-UserIsAdmin {
     }
 }
 
-function Ensure-DashboardAccessGroup {
+function Confirm-DashboardAccessGroup {
     $groupName = 'RDS-Dashboard-Admins'
     $groupDescription = 'Users authorized to login on RDS-Dashboard web app'
     $machineCtx = $null
@@ -3889,7 +3898,7 @@ try {
         Write-AuditLog -Event 'sqlite_status' -Actor 'system' -State 'Disabled' -Details ("SQLite enabled: false (exe: {0}, db: {1})" -f $detectedExe, $farmMetricsDbPath)
     }
     $deletedLogs = Remove-OldAuditLogs -DaysToKeep 100
-    Ensure-DashboardAccessGroup
+    Confirm-DashboardAccessGroup
     Write-AuditLog -Event 'service_start' -Actor 'system' -Details "RDS Dashboard web service started, version $($script:ApplicationVersion) (cleaned $deletedLogs old audit log entries)"
     $restartResult = Restart-CollectorJob -Actor 'system' -IgnoreCooldown
     if (-not $restartResult.Success) {

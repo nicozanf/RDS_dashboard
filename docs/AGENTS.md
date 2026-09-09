@@ -35,7 +35,7 @@ This project is deployed in an **isolated server environment**. The following co
 ### Documentation
 - For installation and validation, see [INSTALL.md](INSTALL.md).
 - For deployment settings, certificates, and service identities, see [CONFIG.md](CONFIG.md).
-- For architecture, troubleshooting, and operational details, see [README.md](README.md).
+- FFor authentication behavior, API reference, and firewall requirements, see [API.md](API.md).
 - Do not duplicate documentation; link to it instead.
 
 ---

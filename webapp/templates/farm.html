@@ -37,6 +37,9 @@
     .graph-axis { display:flex; justify-content:space-between; margin-top:6px; font-size:11px; color:#8da4c6; }
     .range-selector-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:0 0 8px; }
     .range-buttons { display:flex; flex-wrap:wrap; gap:8px; margin-top:0; }
+    .history-load-status { color:#ff8c00; font-weight:600; margin-left:8px; }
+    .history-load-status.blinking { animation: history-load-blink 1s linear infinite; }
+    @keyframes history-load-blink { 0%, 100% { opacity:1; } 50% { opacity:0; } }
     .range-date-input { position:absolute; opacity:0; pointer-events:none; width:1px; height:1px; }
     .range-btn { border:1px solid #2e9e5b; background:#edfaf1; color:#166534; border-radius:999px; padding:7px 12px; font-size:12px; font-weight:600; cursor:pointer; }
     .range-btn:hover, .range-btn:focus-visible { box-shadow:0 0 0 2px rgba(34,197,94,0.35); outline:none; }
@@ -71,7 +74,7 @@
       <div class="stat"><div class="muted">Disconnected</div><div id="f-disc">-</div></div>
       <div class="stat"><div class="muted">Avg CPU %</div><div id="f-cpu">-</div></div>
       <div class="stat"><div class="muted">Avg RAM %</div><div id="f-ram">-</div></div>
-    <div class="stat"><div class="muted">Last Update (Rome time)</div><div id="f-ts">-</div><div id="f-load-status" class="muted" style="margin-top:4px;min-height:16px;">-</div></div>
+    <div class="stat"><div class="muted">Last Update (Rome time)</div><div id="f-ts">-</div></div>
     </div>
         <div class="section-title">Last hour data</div>
     <div class="graphs">
@@ -96,7 +99,7 @@
             <div class="section-title" id="history-range-title">Selected range: Today</div>
             <div class="range-buttons" id="range-buttons"></div>
             <input id="select-day-input" class="range-date-input" type="date" />
-            <div id="oldest-data-info" style="font-size:12px;color:#666;margin-top:8px;"></div>
+            <div id="oldest-data-info" style="font-size:12px;color:#666;margin-top:8px;"><span id="oldest-data-text"></span><span id="history-load-status" class="history-load-status"></span></div>
         </div>
         <div class="graphs">
             <div class="graph-card">
@@ -383,22 +386,23 @@ function downsampleHistoryByCount(history, maxPoints) {
     return sampled;
 }
 
-function setHistoryLoadStatus(text) {
-    const statusEl = document.getElementById('f-load-status');
+function setHistoryLoadStatus(text, blinking) {
+    const statusEl = document.getElementById('history-load-status');
     if (!statusEl) return;
     statusEl.textContent = text || '';
+    statusEl.classList.toggle('blinking', !!blinking);
 }
 
 function startHistoryLoadProgress() {
     historyLoadPct = 1;
-    setHistoryLoadStatus('Loading data - please wait (' + historyLoadPct + ' %)');
+    setHistoryLoadStatus('Loading data - please wait (' + historyLoadPct + ' %)', true);
     if (historyLoadTimerId) {
         clearInterval(historyLoadTimerId);
     }
     historyLoadTimerId = setInterval(() => {
         if (historyLoadPct < 90) {
             historyLoadPct += 3;
-            setHistoryLoadStatus('Loading data - please wait (' + historyLoadPct + ' %)');
+            setHistoryLoadStatus('Loading data - please wait (' + historyLoadPct + ' %)', true);
         }
     }, 250);
 }
@@ -410,14 +414,19 @@ function finishHistoryLoadProgress(success) {
     }
     if (success) {
         historyLoadPct = 100;
-        setHistoryLoadStatus('Loading data - please wait (' + historyLoadPct + ' %)');
+        setHistoryLoadStatus('Loading data - please wait (' + historyLoadPct + ' %)', true);
         setTimeout(() => {
             if (!historyLoadInFlight) {
-                setHistoryLoadStatus('Historical data ready');
+                setHistoryLoadStatus('');
             }
         }, 250);
     } else {
-        setHistoryLoadStatus('Historical data unavailable');
+        setHistoryLoadStatus('Historical data unavailable', false);
+        setTimeout(() => {
+            if (!historyLoadInFlight) {
+                setHistoryLoadStatus('');
+            }
+        }, 3000);
     }
 }
 
@@ -1070,7 +1079,7 @@ function renderHistoryRangeButtons() {
 }
 
 function updateOldestDataInfo() {
-    const info = document.getElementById('oldest-data-info');
+    const info = document.getElementById('oldest-data-text');
     if (!info) return;
     
     let displayDate = '';
@@ -1304,12 +1313,18 @@ async function ensurePersistedFarmHistoryLoaded(requiredDaysParam) {
     farmHistoryApiAttempted = true;
     historyLoadInFlight = true;
     startHistoryLoadProgress();
+    let historyLoadTimeoutId = null;
+    let historyLoadTimedOut = false;
     try {
         farmPersistedAttempts++;
         if (historyLoadController) {
             historyLoadController.abort();
         }
         historyLoadController = new AbortController();
+        historyLoadTimeoutId = setTimeout(() => {
+            historyLoadTimedOut = true;
+            historyLoadController.abort();
+        }, 30000);
 
         const params = new URLSearchParams();
         params.set('days', String(requiredDays));
@@ -1357,12 +1372,17 @@ async function ensurePersistedFarmHistoryLoaded(requiredDaysParam) {
         finishHistoryLoadProgress(true);
     } catch (persistedErr) {
         if (persistedErr && persistedErr.name === 'AbortError') {
-            setHistoryLoadStatus('');
+            if (historyLoadTimedOut) {
+                finishHistoryLoadProgress(false);
+            } else {
+                setHistoryLoadStatus('');
+            }
         } else {
             console.warn('Persisted farm history load failed', persistedErr);
             finishHistoryLoadProgress(false);
         }
     } finally {
+        clearTimeout(historyLoadTimeoutId);
         historyLoadInFlight = false;
         historyLoadController = null;
     }

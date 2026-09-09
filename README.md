@@ -38,8 +38,13 @@ Points of interest:
 
 
 For prerequisites, offline dependencies, first-time setup, and validation, see [INSTALL.md](docs/INSTALL.md).
+
 For configuration details, see [CONFIG.md](docs/CONFIG.md).
+
 For API endpoints, security and troubleshooting, see [API.md](docs/API.md).
+
+For AI agents guides, see [AGENTS.md](docs/AGENTS.md).
+
 
 ## Folder Contents
 
