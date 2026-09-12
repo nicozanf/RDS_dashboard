@@ -2,11 +2,11 @@
 
 ## Overview
 
-The RDS-dashboard web app is a public domain program hosted at https://github.com/nicozanf/RDS_dashboard. It runs on Windows using native PowerShell/.NET components and standard Windows commands like `quser`. It does not need a
+A full-featured Windows RDS session dashboard hosted at https://github.com/nicozanf/RDS_dashboard. It runs on Windows using native PowerShell/.NET components and standard Windows commands like `quser`. It does not need a
 Web server, nor a proper installed database (it uses SQLite).
 
 It was developed for managing isolated RDS hosts, where user balancing is accomplished outside the Microsoft servers using network appliances.
-Because the usual Microsoft tools for managing RDS farms are not available, in this case you are totally blind without additional products.
+In this case the usual Microsoft tools for managing RDS farms are not available, so you are totally blind without additional products.
 
 Example screenshots:
 
@@ -22,9 +22,10 @@ the **full Farm** history view with CPU/RAM/sessions history for the last hour a
 ![full farm history](docs/images/farm.png)
 
 
-Points of interest:
+## Features
 
 - HTTPS on port 443
+- always running as a Windows service
 - AD form-based authentication (same domain as the server)
 - Always-on mode via Windows Service
 - Session actions: disconnect, logoff, send message
